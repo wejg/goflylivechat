@@ -3,6 +3,7 @@
 .clear{clear: both;}
 .visitorBody{
     background-color: #4c4c4c;
+    height: 100vh;
 }
 .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
     font-family: inherit;
@@ -402,13 +403,11 @@ a{color: #07a9fe;text-decoration: none;}
     color: #333;
 }
 @media screen and (min-width: 900px) {
-    .chatCenter {
-        max-height: 650px;
+    #app.chatCenter {
+        height: 650px;
+        max-height: 100vh;
         box-shadow: 0 2px 8px rgba(0,0,0,.15);
         border-radius: 8px;
-    }
-    .chatVisitorPage {
-        height: calc(100% - 156px);
     }
     .chatEntTitle{display: flex;}
     .chatEntTitleLogo {
@@ -423,12 +422,14 @@ a{color: #07a9fe;text-decoration: none;}
     }
     .chatEntBox {
         width: calc(100% - 265px);
+        height: calc(100% - 56px);
         float: left;
         border-right: 1px solid #e6e6e6;
     }
     .chatArticle {
         display: block;
         width: 260px;
+        height: calc(100% - 56px);
         float: right;
         overflow-y: auto;
     }
