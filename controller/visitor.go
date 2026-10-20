@@ -213,6 +213,40 @@ func GetVisitorMessage(c *gin.Context) {
 	})
 }
 
+func GetVisitorMessageStatus(c *gin.Context) {
+	visitorID := c.Query("visitor_id")
+	if visitorID == "" {
+		visitorID = c.Query("visitorId")
+	}
+	if visitorID == "" {
+		c.JSON(200, gin.H{"code": 400, "msg": "visitor_id不能为空"})
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 200,
+		"msg":  "ok",
+		"result": gin.H{
+			"unread": models.FindUnreadMessageNumByVisitorId(visitorID),
+		},
+	})
+}
+
+func MarkVisitorMessageRead(c *gin.Context) {
+	visitorID := c.PostForm("visitor_id")
+	if visitorID == "" {
+		visitorID = c.Query("visitor_id")
+	}
+	if visitorID == "" {
+		visitorID = c.Query("visitorId")
+	}
+	if visitorID == "" {
+		c.JSON(200, gin.H{"code": 400, "msg": "visitor_id不能为空"})
+		return
+	}
+	models.ReadMessageByVisitorId(visitorID)
+	c.JSON(200, gin.H{"code": 200, "msg": "ok"})
+}
+
 // @Summary 获取在线访客列表接口
 // @Produce  json
 // @Success 200 {object} controller.Response

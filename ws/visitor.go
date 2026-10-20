@@ -11,31 +11,28 @@ import (
 )
 
 func NewVisitorServer(c *gin.Context) {
-	//go kefuServerBackend()
+	visitorInfo := models.FindVisitorByVistorId(c.Query("visitor_id"))
+	if visitorInfo.VisitorId == "" {
+		c.JSON(200, gin.H{"code": 400, "msg": "访客不存在"})
+		return
+	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	//获取GET参数,创建WS
-	vistorInfo := models.FindVisitorByVistorId(c.Query("visitor_id"))
-	if vistorInfo.VisitorId == "" {
-		c.JSON(200, gin.H{
-			"code": 400,
-			"msg":  "访客不存在",
-		})
-		return
-	}
+	conn.SetReadLimit(wsReadLimit)
+	_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
 	user := &User{
 		Conn:       conn,
-		Name:       vistorInfo.Name,
-		Avator:     vistorInfo.Avator,
-		Id:         vistorInfo.VisitorId,
-		To_id:      vistorInfo.ToId,
+		Name:       visitorInfo.Name,
+		Avator:     visitorInfo.Avator,
+		Id:         visitorInfo.VisitorId,
+		To_id:      visitorInfo.ToId,
 		UpdateTime: time.Now(),
 	}
-	go models.UpdateVisitorStatus(vistorInfo.VisitorId, 1)
-	//go SendServerJiang(vistorInfo.Name, "来了", c.Request.Host)
+	go models.UpdateVisitorStatus(visitorInfo.VisitorId, 1)
+	//go SendServerJiang(visitorInfo.Name, "来了", c.Request.Host)
 
 	AddVisitorToList(user)
 
@@ -53,11 +50,14 @@ func NewVisitorServer(c *gin.Context) {
 			return
 		}
 
-		message <- &Message{
-			conn:        conn,
-			content:     receive,
-			context:     c,
-			messageType: messageType,
+		_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
+		if !enqueueMessage(&Message{conn: conn, content: receive, context: c, messageType: messageType}) {
+			_ = conn.Close()
+			if current, ok := ClientList.Get(user.Id); ok && current == user {
+				ClientList.Delete(user.Id)
+				VisitorOffline(user.RouteTo(), user.Id, user.Name)
+			}
+			return
 		}
 	}
 }
@@ -187,27 +187,28 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 func CleanVisitorExpire() {
 	go func() {
 		log.Println("cleanVisitorExpire start...")
-		for {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
 			for _, user := range ClientList.Snapshot() {
-				diff := time.Since(user.LastUpdate()).Seconds()
-				if diff >= common.VisitorExpire {
-					msg := TypeMessage{
-						Type: "auto_close",
-						Data: user.Id,
-					}
-					str, _ := json.Marshal(msg)
-					user.Mux.Lock()
-					err := user.Conn.WriteMessage(websocket.TextMessage, str)
-					user.Mux.Unlock()
-					if err != nil {
-						user.Conn.Close()
-						ClientList.Delete(user.Id)
-					}
-					log.Println(user.Name + ":cleanVisitorExpire finshed")
+				if time.Since(user.LastUpdate()).Seconds() < common.VisitorExpire {
+					continue
 				}
+				msg := TypeMessage{Type: "auto_close", Data: user.Id}
+				str, _ := json.Marshal(msg)
+				user.Mux.Lock()
+				_ = user.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err := user.Conn.WriteMessage(websocket.TextMessage, str)
+				user.Mux.Unlock()
+				if err != nil {
+					_ = user.Conn.Close()
+				} else {
+					models.UpdateVisitorStatus(user.Id, 0)
+					_ = user.Conn.Close()
+				}
+				ClientList.Delete(user.Id)
+				log.Println(user.Name + ":cleanVisitorExpire finished")
 			}
-			t := time.NewTimer(time.Second * 5)
-			<-t.C
 		}
 	}()
 }

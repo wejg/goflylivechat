@@ -325,6 +325,8 @@
             server:getWsBaseUrl()+"/ws_kefu?token="+localStorage.getItem("token"),
             //server:getWsBaseUrl()+"/chat_server",
             socket:null,
+            pingTimer:null,
+            onlineTimer:null,
             socketClosed:false,
             messageContent:"",
             currentGuest:"",
@@ -387,18 +389,23 @@
                 mes.data = this.kfConfig;
                 this.socket.send(JSON.stringify(mes));
             },
+            trimMessages(){
+                if(this.msgList.length > 200){
+                    this.msgList.splice(0, this.msgList.length - 200);
+                }
+            },
             //心跳
             ping(){
                 let _this=this;
-                let mes = {}
-                mes.type = "ping";
-                mes.data = "";
-                setInterval(function () {
-                    if(_this.socket!=null){
+                let mes = {type:"ping", data:""};
+                if(this.pingTimer){ clearInterval(this.pingTimer); }
+                if(this.onlineTimer){ clearInterval(this.onlineTimer); }
+                this.pingTimer=setInterval(function () {
+                    if(_this.socket && _this.socket.readyState === WebSocket.OPEN){
                         _this.socket.send(JSON.stringify(mes));
                     }
-                },20000)
-                setInterval(function(){
+                },20000);
+                this.onlineTimer=setInterval(function(){
                     _this.getOnlineVisitors();
                 },120000);
             },
@@ -467,6 +474,7 @@
                     content.time = msg.time;
                     if (msg.id == this.currentGuest) {
                         this.msgList.push(content);
+                        this.trimMessages();
                     }
 
                     for(let i=0;i<this.users.length;i++){
@@ -717,6 +725,7 @@
                         item.time = item["create_time"];
                         _this.msgList.unshift(item);
                     }
+                    _this.trimMessages();
                     if(_this.messages.page==1){
                         _this.scrollBottom();
                     }
@@ -1240,6 +1249,11 @@
         },
         mounted() {
             document.addEventListener('paste', this.onPasteUpload)
+        },
+        beforeDestroy(){
+            if(this.pingTimer){ clearInterval(this.pingTimer); }
+            if(this.onlineTimer){ clearInterval(this.onlineTimer); }
+            if(this.socket){ this.socket.close(); }
         },
         created: function () {
             //jquery

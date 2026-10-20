@@ -20,6 +20,10 @@ import (
 // @Failure 500 {object} Response
 // @Router /check [post]
 func LoginCheckPass(c *gin.Context) {
+	if !tools.LimitFreqSingle("login:"+c.ClientIP(), 5, 60) {
+		c.JSON(200, gin.H{"code": 429, "message": "登录尝试过于频繁"})
+		return
+	}
 	password := c.PostForm("password")
 	username := c.PostForm("username")
 	info := models.FindUser(username)

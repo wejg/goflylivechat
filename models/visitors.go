@@ -50,6 +50,12 @@ func FindVisitors(page uint, pagesize uint) []Visitor {
 	return visitors
 }
 func FindVisitorsByKefuId(page uint, pagesize uint, kefuId string) []Visitor {
+	if page == 0 {
+		page = 1
+	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
 	offset := (page - 1) * pagesize
 	if offset <= 0 {
 		offset = 0

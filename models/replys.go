@@ -11,7 +11,7 @@ type ReplyGroup struct {
 	Id        string       `json:"group_id"`
 	GroupName string       `json:"group_name"`
 	UserId    string       `json:"user_id"`
-	Items     []*ReplyItem `json:"items";"`
+	Items     []*ReplyItem `json:"items"`
 }
 
 func FindReplyItemByUserIdTitle(userId interface{}, title string) ReplyItem {

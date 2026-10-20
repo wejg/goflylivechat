@@ -89,7 +89,7 @@ Copy `.env.example` to `.env`, replace the passwords and session secret, then ru
 docker compose up -d --build
 ```
 
-The first startup imports `import.sql` automatically. Open `http://localhost:8081` after the app container is healthy. Set `GOFLY_ALLOWED_ORIGINS` to the exact website origins that embed the chat widget, separated by commas.
+The first startup imports `import.sql` automatically. Open `http://localhost:8081` after the app container is healthy. Set `GOFLY_ALLOWED_ORIGINS` to the exact website origins that embed the chat widget, separated by commas. Set `GOFLY_SESSION_SECRET` and `GOFLY_JWT_SECRET` to long random values in production.
 
 The database, installation lock, and uploaded files are stored in named Docker volumes. To reset the demo database and files, run `docker compose down -v`.
 

@@ -21,13 +21,20 @@ func NewKefuServer(c *gin.Context) {
 		return
 	}
 
-	//go kefuServerBackend()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	//获取GET参数,创建WS
+	conn.SetReadLimit(wsReadLimit)
+	_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
+	defer func() {
+		if current, ok := KefuList.Get(kefuInfo.Name); ok && current != nil && current.Conn == conn {
+			KefuList.Delete(kefuInfo.Name)
+		}
+		_ = conn.Close()
+	}()
+
 	var kefu User
 	kefu.Id = kefuInfo.Name
 	kefu.Name = kefuInfo.Nickname
@@ -41,15 +48,11 @@ func NewKefuServer(c *gin.Context) {
 		messageType, receive, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("ws/user.go ", err)
-			conn.Close()
 			return
 		}
-
-		message <- &Message{
-			conn:        conn,
-			content:     receive,
-			context:     c,
-			messageType: messageType,
+		_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
+		if !enqueueMessage(&Message{conn: conn, content: receive, context: c, messageType: messageType}) {
+			return
 		}
 	}
 }
@@ -75,12 +78,13 @@ func AddKefuToList(kefu *User) {
 func OneKefuMessage(toId string, str []byte) {
 	kefu, ok := KefuList.Get(toId)
 	if ok {
-		log.Println("OneKefuMessage lock")
 		kefu.Mux.Lock()
 		defer kefu.Mux.Unlock()
-		log.Println("OneKefuMessage unlock")
-		error := kefu.Conn.WriteMessage(websocket.TextMessage, str)
-		tools.Logger().Println("send_kefu_message", error, string(str))
+		_ = kefu.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := kefu.Conn.WriteMessage(websocket.TextMessage, str); err != nil {
+			KefuList.Delete(toId)
+			tools.Logger().Println("send_kefu_message", err)
+		}
 	}
 }
 func KefuMessage(visitorId, content string, kefuInfo models.User) {

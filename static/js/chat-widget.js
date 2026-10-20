@@ -11,7 +11,8 @@ const CHAT_WIDGET = {
     chatWindowTitle: "Chat with us",
     isOffline: false,
     iframeId: "chat-widget-iframe",
-    containerId: "chat-widget-container"
+    containerId: "chat-widget-container",
+    titleFlashTimer: null
 };
 
 CHAT_WIDGET.initialize = function(config) {
@@ -180,16 +181,16 @@ CHAT_WIDGET.closeChatWindow = function() {
 };
 
 CHAT_WIDGET.buildChatUrl = function() {
-    let url = `${this.API_URL}/livechat?user_id=${this.AGENT_ID}`;
+    let url = `${this.API_URL}/livechat?user_id=${encodeURIComponent(this.AGENT_ID)}`;
 
     if (this.USER_ID) {
-        url += `&user_id=${this.USER_ID}`;
+        url += `&visitor_id=${encodeURIComponent(this.USER_ID)}`;
     }
     if (this.USER_NAME) {
-        url += `&name=${encodeURIComponent(this.USER_NAME)}`;
+        url += `&visitor_name=${encodeURIComponent(this.USER_NAME)}`;
     }
     if (this.USER_AVATAR) {
-        url += `&avatar=${encodeURIComponent(this.USER_AVATAR)}`;
+        url += `&visitor_avatar=${encodeURIComponent(this.USER_AVATAR)}`;
     }
 
     return url;
@@ -199,6 +200,14 @@ CHAT_WIDGET.setupEventHandlers = function() {
     // Handle messages from the chat iframe
     window.addEventListener('message', (e) => {
         if (!e.data || !e.data.type) return;
+        const iframe = document.getElementById(this.iframeId);
+        let expectedOrigin;
+        try {
+            expectedOrigin = new URL(this.API_URL, window.location.href).origin;
+        } catch (_) {
+            return;
+        }
+        if (e.origin !== expectedOrigin || !iframe || e.source !== iframe.contentWindow) return;
 
         switch (e.data.type) {
             case 'new_message':
@@ -229,15 +238,16 @@ CHAT_WIDGET.handleIncomingMessage = function(data) {
 };
 
 CHAT_WIDGET.notifyWithTitleFlash = function() {
+    if (this.titleFlashTimer) return;
     let isFlashing = true;
-    const flashInterval = setInterval(() => {
+    this.titleFlashTimer = setInterval(() => {
         document.title = isFlashing ? "新消息" : this.originalPageTitle;
         isFlashing = !isFlashing;
     }, 1000);
 
-    // Stop flashing when window regains focus
     window.addEventListener('focus', () => {
-        clearInterval(flashInterval);
+        clearInterval(this.titleFlashTimer);
+        this.titleFlashTimer = null;
         document.title = this.originalPageTitle;
     }, { once: true });
 };

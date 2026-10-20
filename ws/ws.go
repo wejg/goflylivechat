@@ -81,7 +81,13 @@ type ClientMessage struct {
 
 var ClientList = registry.New[*User]()
 var KefuList = registry.New[*User]()
-var message = make(chan *Message, 10)
+var message = make(chan *Message, 256)
+
+const (
+	wsReadLimit   = 16 * 1024
+	wsReadTimeout = 90 * time.Second
+)
+
 var upgrader = websocket.Upgrader{}
 var Mux sync.RWMutex
 
@@ -115,55 +121,68 @@ func SendFlyServerJiang(title string, content string, domain string) string {
 
 // 定时给更新数据库状态
 func UpdateVisitorStatusCron() {
-	for {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
 		visitors := models.FindVisitorsOnline()
 		for _, visitor := range visitors {
 			if visitor.VisitorId == "" {
 				continue
 			}
-			_, ok := ClientList.Get(visitor.VisitorId)
-			if !ok {
+			if _, ok := ClientList.Get(visitor.VisitorId); !ok {
 				models.UpdateVisitorStatus(visitor.VisitorId, 0)
 			}
 		}
 		SendPingToKefuClient()
-		time.Sleep(60 * time.Second)
 	}
 }
 
 // 后端广播发送消息
 func WsServerBackend() {
-	for {
-		message := <-message
-		var typeMsg TypeMessage
-		json.Unmarshal(message.content, &typeMsg)
-		conn := message.conn
-		if typeMsg.Type == nil || typeMsg.Data == nil {
+	for msg := range message {
+		var typeMsg struct {
+			Type string          `json:"type"`
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(msg.content, &typeMsg); err != nil || typeMsg.Type == "" {
 			continue
 		}
-		msgType := typeMsg.Type.(string)
-		log.Println("客户端:", string(message.content))
 
-		switch msgType {
-		//心跳
+		switch typeMsg.Type {
 		case "ping":
-			msg := TypeMessage{
-				Type: "pong",
+			var data string
+			_ = json.Unmarshal(typeMsg.Data, &data)
+			if len(data) > len("visitor:") && data[:len("visitor:")] == "visitor:" {
+				if visitor, ok := ClientList.Get(data[len("visitor:"):]); ok && visitor != nil {
+					visitor.Touch()
+				}
 			}
-			str, _ := json.Marshal(msg)
-			message.Mux.Lock()
-			conn.WriteMessage(websocket.TextMessage, str)
-			message.Mux.Unlock()
+			str, _ := json.Marshal(TypeMessage{Type: "pong"})
+			msg.Mux.Lock()
+			_ = msg.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = msg.conn.WriteMessage(websocket.TextMessage, str)
+			msg.Mux.Unlock()
 		case "inputing":
-			data := typeMsg.Data.(map[string]interface{})
-			from := data["from"].(string)
-			to := data["to"].(string)
-			//限流
-			if tools.LimitFreqSingle("inputing:"+from, 1, 2) {
-				OneKefuMessage(to, message.content)
+			var data struct {
+				From string `json:"from"`
+				To   string `json:"to"`
+			}
+			if err := json.Unmarshal(typeMsg.Data, &data); err != nil || data.From == "" || data.To == "" {
+				continue
+			}
+			if tools.LimitFreqSingle("inputing:"+data.From, 1, 2) {
+				OneKefuMessage(data.To, msg.content)
 			}
 		}
+	}
+}
 
+func enqueueMessage(msg *Message) bool {
+	select {
+	case message <- msg:
+		return true
+	default:
+		return false
 	}
 }
 func UpdateVisitorUser(visitorId string, toId string) {

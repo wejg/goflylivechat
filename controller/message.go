@@ -21,10 +21,10 @@ func SendMessageV2(c *gin.Context) {
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
 	cType := c.PostForm("type")
-	if content == "" {
+	if content == "" || len([]rune(content)) > 2048 {
 		c.JSON(200, gin.H{
 			"code": 400,
-			"msg":  "内容不能为空",
+			"msg":  "内容不能为空或超过 2048 个字符",
 		})
 		return
 	}
@@ -36,17 +36,20 @@ func SendMessageV2(c *gin.Context) {
 		})
 		return
 	}
+	if cType == "kefu" {
+		c.JSON(200, gin.H{"code": 403, "msg": "客服消息请使用已认证接口"})
+		return
+	}
+	if cType != "visitor" {
+		c.JSON(200, gin.H{"code": 400, "msg": "消息类型无效"})
+		return
+	}
 	var kefuInfo models.User
 	var vistorInfo models.Visitor
-	if cType == "kefu" {
-		kefuInfo = models.FindUser(fromId)
-		vistorInfo = models.FindVisitorByVistorId(toId)
-	} else if cType == "visitor" {
-		vistorInfo = models.FindVisitorByVistorId(fromId)
-		kefuInfo = models.FindUser(toId)
-	}
+	vistorInfo = models.FindVisitorByVistorId(fromId)
+	kefuInfo = models.FindUser(toId)
 
-	if kefuInfo.ID == 0 || vistorInfo.ID == 0 {
+	if kefuInfo.ID == 0 || vistorInfo.ID == 0 || vistorInfo.ToId != kefuInfo.Name {
 		c.JSON(200, gin.H{
 			"code": 400,
 			"msg":  "用户不存在",
@@ -56,32 +59,6 @@ func SendMessageV2(c *gin.Context) {
 
 	models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
 	//var msg TypeMessage
-	if cType == "kefu" {
-		guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
-
-		if guest != nil && ok {
-			ws.VisitorMessage(vistorInfo.VisitorId, content, kefuInfo)
-		}
-		ws.KefuMessage(vistorInfo.VisitorId, content, kefuInfo)
-		//msg = TypeMessage{
-		//	Type: "message",
-		//	Data: ws.ClientMessage{
-		//		Name:    kefuInfo.Nickname,
-		//		Avator:  kefuInfo.Avator,
-		//		Id:      vistorInfo.VisitorId,
-		//		Time:    time.Now().Format("2006-01-02 15:04:05"),
-		//		ToId:    vistorInfo.VisitorId,
-		//		Content: content,
-		//		IsKefu:  "yes",
-		//	},
-		//}
-		//str2, _ := json.Marshal(msg)
-		//ws.OneKefuMessage(kefuInfo.Name, str2)
-		c.JSON(200, gin.H{
-			"code": 200,
-			"msg":  "ok",
-		})
-	}
 	if cType == "visitor" {
 		guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
 		if ok && guest != nil {
@@ -129,10 +106,10 @@ func SendKefuMessage(c *gin.Context) {
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
 	cType := c.PostForm("type")
-	if content == "" {
+	if content == "" || len([]rune(content)) > 2048 {
 		c.JSON(200, gin.H{
 			"code": 400,
-			"msg":  "内容不能为空",
+			"msg":  "内容不能为空或超过 2048 个字符",
 		})
 		return
 	}
@@ -237,6 +214,10 @@ func UploadImg(c *gin.Context) {
 	} else {
 
 		fileExt := strings.ToLower(path.Ext(f.Filename))
+		if f.Size > 10*1024*1024 {
+			c.JSON(200, gin.H{"code": 400, "msg": "上传失败!图片不允许超过 10M"})
+			return
+		}
 		if fileExt != ".png" && fileExt != ".jpg" && fileExt != ".gif" && fileExt != ".jpeg" {
 			c.JSON(200, gin.H{
 				"code": 400,
@@ -255,7 +236,10 @@ func UploadImg(c *gin.Context) {
 			os.Mkdir(fildDir, os.ModePerm)
 		}
 		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		c.SaveUploadedFile(f, filepath)
+		if err := c.SaveUploadedFile(f, filepath); err != nil {
+			c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
+			return
+		}
 		c.JSON(200, gin.H{
 			"code": 200,
 			"msg":  "上传成功!",
@@ -291,7 +275,10 @@ func UploadFile(c *gin.Context) {
 			os.Mkdir(fildDir, os.ModePerm)
 		}
 		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		c.SaveUploadedFile(f, filepath)
+		if err := c.SaveUploadedFile(f, filepath); err != nil {
+			c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
+			return
+		}
 		c.JSON(200, gin.H{
 			"code": 200,
 			"msg":  "上传成功!",
@@ -341,6 +328,12 @@ func GetMessagespages(c *gin.Context) {
 	visitorId := c.Query("visitor_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pagesize", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
 	if pageSize > 20 {
 		pageSize = 20
 	}

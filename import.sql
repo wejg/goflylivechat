@@ -51,7 +51,8 @@ CREATE TABLE `message` (
  `status` enum('read','unread') NOT NULL DEFAULT 'unread',
  PRIMARY KEY (`id`),
  KEY `kefu_id` (`kefu_id`),
- KEY `visitor_id` (`visitor_id`)
+ KEY `visitor_id` (`visitor_id`),
+ KEY `idx_visitor_id_id` (`visitor_id`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `ipblack`;

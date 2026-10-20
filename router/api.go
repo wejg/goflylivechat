@@ -30,16 +30,16 @@ func InitApiRouter(engine *gin.Engine) {
 	engine.GET("/ws_kefu", middleware.JwtApiMiddleware, ws.NewKefuServer)
 	engine.GET("/ws_visitor", middleware.Ipblack, ws.NewVisitorServer)
 
-	engine.GET("/messages", controller.GetVisitorMessage)
+	engine.GET("/messages", middleware.JwtApiMiddleware, controller.GetVisitorMessage)
 	engine.GET("/message_notice", controller.SendVisitorNotice)
 	//上传文件
 	engine.POST("/uploadimg", middleware.Ipblack, controller.UploadImg)
 	//上传文件
 	engine.POST("/uploadfile", middleware.Ipblack, controller.UploadFile)
 	//获取未读消息数
-	engine.GET("/message_status", controller.GetVisitorMessage)
+	engine.GET("/message_status", controller.GetVisitorMessageStatus)
 	//设置消息已读
-	engine.POST("/message_status", controller.GetVisitorMessage)
+	engine.POST("/message_status", controller.MarkVisitorMessageRead)
 
 	//获取客服信息
 	engine.POST("/kefuinfo_client", middleware.JwtApiMiddleware, controller.PostKefuClient)

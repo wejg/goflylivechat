@@ -7,7 +7,7 @@ var (
 type Response struct {
 	Code   int         `json:"code"`
 	Msg    string      `json:"msg"`
-	result interface{} `json:"result"`
+	Result interface{} `json:"result"`
 }
 type ChatMessage struct {
 	Time    string `json:"time"`

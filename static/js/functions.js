@@ -98,92 +98,63 @@ function placeFace() {
     }
     return faces;
 }
-function replaceContent (content,baseUrl) {// 转义聊天内容中的特殊字符
-    if(typeof baseUrl=="undefined"){
-        baseUrl="";
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>'"]/g, function (char) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char];
+    });
+}
+function safeUrl(value) {
+    try {
+        var url = new URL(String(value || ''), window.location.origin);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+        return escapeHtml(url.href);
+    } catch (_) {
+        return '';
     }
-    var faces=placeFace();
-    content = (content || '')
-        .replace(/face\[(.*?)\]/g, function (face) {  // 转义表情
-            var alt = face.replace(/^face/g, '');
-            return '<img alt="' + alt + '" title="' + alt + '" src="'+baseUrl + faces[alt] + '">';
-        })
-        .replace(/img\[(.*?)\]/g, function (face) {  // 转义图片
-            var src = face.replace(/^img\[/g, '').replace(/\]/g, '');;
-            return '<img onclick="bigPic(src,true)" src="' +baseUrl+ src + '" style="max-width: 150px"/></div>';
-        })
-        .replace(/\n/g, '<br>'); // 转义换行
-    content=replaceAttachment(content);
-    return content;
 }
-//替换附件展示
-function replaceAttachment(str){
-    return str.replace(/attachment\[(.*?)\]/g, function (result) {
-        var mutiFiles=result.match(/attachment\[(.*?)\]/)
-        if (mutiFiles.length<2){
-            return result;
+function renderMessageToken(token, baseUrl) {
+    var faces = placeFace();
+    if (token.indexOf('face[') === 0) {
+        var face = token.replace(/^face/g, '');
+        var facePath = faces[face];
+        return facePath ? '<img alt="' + escapeHtml(face) + '" title="' + escapeHtml(face) + '" src="' + escapeHtml(baseUrl + facePath) + '">' : escapeHtml(token);
+    }
+    if (token.indexOf('img[') === 0) {
+        var src = token.replace(/^img\[/, '').replace(/\]$/, '');
+        var safeSrc = safeUrl(src);
+        return safeSrc ? '<img onclick="bigPic(this.src,true)" src="' + safeSrc + '" style="max-width: 150px"/>' : escapeHtml(token);
+    }
+    if (token.indexOf('attachment[') === 0) {
+        try {
+            var info = JSON.parse(token.slice(11, -1));
+            var path = safeUrl(info.path);
+            if (!path) return escapeHtml(token);
+            var imgSrc = '/static/images/ext/default.png';
+            var icons = {'.mp3':'MP3','.zip':'ZIP','.txt':'TXT','.7z':'7z','.bpm':'BMP','.png':'PNG','.jpg':'JPG','.jpeg':'JPEG','.pdf':'PDF','.doc':'DOC','.docx':'DOCX','.rar':'RAR','.xlsx':'XLSX','.csv':'XLSX'};
+            if (icons[info.ext]) imgSrc = '/static/images/ext/' + icons[info.ext] + '.png';
+            return '<div data-url="' + path + '" onclick="window.open(this.dataset.url)" class="productCard">' +
+                '<div><img src="' + imgSrc + '" style="width: 38px;height: 38px;" /></div>' +
+                '<div class="productCardTitle"><div class="productCardTitle">' + escapeHtml(info.name) + '</div>' +
+                '<div style="font-size: 12px;color: #666">' + formatFileSize(Number(info.size) || 0) + '</div></div></div>';
+        } catch (_) {
+            return escapeHtml(token);
         }
-        //return result;
+    }
+    return escapeHtml(token);
+}
+function replaceContent(content, baseUrl) {
+    baseUrl = baseUrl || '';
+    var tokens = [];
+    var text = String(content || '').replace(/face\[[^\]]*\]|img\[[^\]]*\]|attachment\[[\s\S]*?\]/g, function (token) {
+        var index = tokens.push(token) - 1;
+        return '\u0000' + index + '\u0000';
+    });
+    text = escapeHtml(text).replace(/\n/g, '<br>');
+    return text.replace(/\u0000(\d+)\u0000/g, function (_, index) {
+        return renderMessageToken(tokens[Number(index)], baseUrl);
+    });
+}
 
-        var info=JSON.parse(mutiFiles[1])
-        var imgSrc="";
-        switch(info.ext){
-            case ".mp3":
-                imgSrc="/static/images/ext/MP3.png";
-                break;
-            case ".zip":
-                imgSrc="/static/images/ext/ZIP.png";
-                break;
-            case ".txt":
-                imgSrc="/static/images/ext/TXT.png";
-                break;
-            case ".7z":
-                imgSrc="/static/images/ext/7z.png";
-                break;
-            case ".bpm":
-                imgSrc="/static/images/ext/BMP.png";
-                break;
-            case ".png":
-                imgSrc="/static/images/ext/PNG.png";
-                break;
-            case ".jpg":
-                imgSrc="/static/images/ext/JPG.png";
-                break;
-            case ".jpeg":
-                imgSrc="/static/images/ext/JPEG.png";
-                break;
-            case ".pdf":
-                imgSrc="/static/images/ext/PDF.png";
-                break;
-            case ".doc":
-                imgSrc="/static/images/ext/DOC.png";
-                break;
-            case ".docx":
-                imgSrc="/static/images/ext/DOCX.png";
-                break;
-            case ".rar":
-                imgSrc="/static/images/ext/RAR.png";
-                break;
-            case ".xlsx":
-                imgSrc="/static/images/ext/XLSX.png";
-                break;
-            case ".csv":
-                imgSrc="/static/images/ext/XLSX.png";
-                break;
-            default:
-                imgSrc="/static/images/ext/default.png";
-                break;
-        }
-        var html= `<div onclick="window.open('`+info.path+`')" class="productCard">
-                        <div><img src='`+imgSrc+`' style='width: 38px;height: 38px;' /></div>
-                        <div class="productCardTitle">
-                            <div class="productCardTitle">`+info.name+`</div>
-                            <div style="font-size: 12px;color: #666">`+formatFileSize(info.size)+`</div>
-                        </div>
-                    </div>`;
-        return html;
-    })
-}
 function formatFileSize(fileSize) {
     if (fileSize < 1024) {
         return fileSize + 'B';
@@ -231,17 +202,7 @@ function checkLang(){
     return "cn";
 }
 function getQuery(key) {
-    var query = window.location.search.substring(1);
-    var key_values = query.split("&");
-    var params = {};
-    key_values.map(function (key_val){
-        var key_val_arr = key_val.split("=");
-        params[key_val_arr[0]] = key_val_arr[1];
-    });
-    if(typeof params[key]!="undefined"){
-        return params[key];
-    }
-    return "";
+    return new URLSearchParams(window.location.search).get(key) || "";
 }
 function utf8ToB64(str) {
     return window.btoa(unescape(encodeURIComponent(str)));

@@ -6,10 +6,13 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
 func Get(url string) string {
-	res, err := http.Get(url)
+	res, err := httpClient.Get(url)
 	if err != nil {
 		return ""
 	}
@@ -21,9 +24,9 @@ func Get(url string) string {
 	return string(robots)
 }
 
-//Post("http://xxxx","application/json;charset=utf-8",[]byte("{'aaa':'bbb'}"))
+// Post("http://xxxx","application/json;charset=utf-8",[]byte("{'aaa':'bbb'}"))
 func Post(url string, contentType string, body []byte) (string, error) {
-	res, err := http.Post(url, contentType, strings.NewReader(string(body)))
+	res, err := httpClient.Post(url, contentType, strings.NewReader(string(body)))
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +38,7 @@ func Post(url string, contentType string, body []byte) (string, error) {
 	return string(content), nil
 }
 func PostHeader(url string, msg []byte, headers map[string]string) (string, error) {
-	client := &http.Client{}
+	client := httpClient
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(msg)))
 	if err != nil {
@@ -45,6 +48,9 @@ func PostHeader(url string, msg []byte, headers map[string]string) (string, erro
 		req.Header.Set(key, header)
 	}
 	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -60,9 +66,10 @@ func IsMobile(userAgent string) bool {
 	}
 	return false
 }
-//发送http post请求数据为form
+
+// 发送http post请求数据为form
 func PostForm(url string, data url.Values) (string, error) {
-	resp, err := http.PostForm(url, data)
+	resp, err := httpClient.PostForm(url, data)
 	if err != nil {
 		return "", err
 	}

@@ -7,71 +7,49 @@ import (
 )
 
 type LimitQueeMap struct {
-	sync.RWMutex
+	sync.Mutex
 	LimitQueue map[string][]int64
 }
 
-func (l *LimitQueeMap) readMap(key string) ([]int64, bool) {
-	l.RLock()
-	value, ok := l.LimitQueue[key]
-	l.RUnlock()
-	return value, ok
-}
-
-func (l *LimitQueeMap) writeMap(key string, value []int64) {
-	l.Lock()
-	l.LimitQueue[key] = value
-	l.Unlock()
-}
-
-var LimitQueue = &LimitQueeMap{
-	LimitQueue: make(map[string][]int64),
-}
-var ok bool
+var LimitQueue = &LimitQueeMap{LimitQueue: make(map[string][]int64)}
 
 func NewLimitQueue() {
 	cleanLimitQueue()
 }
+
 func cleanLimitQueue() {
 	go func() {
 		for {
 			log.Println("cleanLimitQueue start...")
-			LimitQueue.LimitQueue = nil
 			now := time.Now()
-			// 计算下一个零点
-			next := now.Add(time.Hour * 24)
+			LimitQueue.Lock()
+			LimitQueue.LimitQueue = make(map[string][]int64)
+			LimitQueue.Unlock()
+
+			next := now.Add(24 * time.Hour)
 			next = time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, next.Location())
-			t := time.NewTimer(next.Sub(now))
-			<-t.C
+			<-time.After(next.Sub(now))
 		}
 	}()
 }
 
-//单机时间滑动窗口限流法
+// LimitFreqSingle implements a small in-process sliding-window limiter.
 func LimitFreqSingle(queueName string, count uint, timeWindow int64) bool {
-	currTime := time.Now().Unix()
-	if LimitQueue.LimitQueue == nil {
-		LimitQueue.LimitQueue = make(map[string][]int64)
-	}
-	if _, ok = LimitQueue.readMap(queueName); !ok {
-		LimitQueue.writeMap(queueName, make([]int64, 0))
-		return true
-	}
-	q, _ := LimitQueue.readMap(queueName)
-	//队列未满
-	if uint(len(q)) < count {
-		LimitQueue.writeMap(queueName, append(q, currTime))
-		return true
-	}
-	//队列满了,取出最早访问的时间
-	earlyTime := q[0]
-	//说明最早期的时间还在时间窗口内,还没过期,所以不允许通过
-	if currTime-earlyTime <= timeWindow {
+	if count == 0 {
 		return false
-	} else {
-		//说明最早期的访问应该过期了,去掉最早期的
-		q = q[1:]
-		LimitQueue.writeMap(queueName, append(q, currTime))
 	}
+	currTime := time.Now().Unix()
+	LimitQueue.Lock()
+	defer LimitQueue.Unlock()
+
+	q := LimitQueue.LimitQueue[queueName]
+	if uint(len(q)) < count {
+		LimitQueue.LimitQueue[queueName] = append(q, currTime)
+		return true
+	}
+	if currTime-q[0] <= timeWindow {
+		return false
+	}
+	LimitQueue.LimitQueue[queueName] = append(q[1:], currTime)
 	return true
 }

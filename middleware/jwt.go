@@ -29,7 +29,13 @@ func JwtApiMiddleware(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	createTime := int64(userinfo["create_time"].(float64))
+	created, ok := userinfo["create_time"].(float64)
+	if !ok {
+		c.JSON(200, gin.H{"code": 400, "msg": "验证失败"})
+		c.Abort()
+		return
+	}
+	createTime := int64(created)
 	var expire int64 = 24 * 60 * 60
 	nowTime := time.Now().Unix()
 	if (nowTime - createTime) >= expire {
@@ -38,6 +44,7 @@ func JwtApiMiddleware(c *gin.Context) {
 			"msg":  "token失效",
 		})
 		c.Abort()
+		return
 	}
 	c.Set("kefu_id", userinfo["kefu_id"])
 	c.Set("kefu_name", userinfo["kefu_name"])

@@ -90,6 +90,9 @@
 </body>
 <script>
     var KEFU_ID=getQuery("user_id");
+    var INITIAL_VISITOR_ID=getQuery("visitor_id") || "";
+    var INITIAL_VISITOR_NAME=getQuery("visitor_name") || "";
+    var INITIAL_VISITOR_AVATAR=getQuery("visitor_avatar") || "";
     var REFER='{{.Refer}}';
 </script>
 <script>
@@ -110,6 +113,7 @@
             socketClosed:false,
             focusSendConn:false,
             timer:null,
+            pingTimer:null,
             sendDisabled:false,
             showIconBtns:false,
             showFaceIcon:false,
@@ -124,7 +128,7 @@
         },
         methods: {
             initConn:function() {
-                let socket = new ReconnectingWebSocket(this.server+"?visitor_id="+this.visitor.visitor_id);
+                let socket = new ReconnectingWebSocket(this.server+"?visitor_id="+encodeURIComponent(this.visitor.visitor_id));
                 this.socket = socket
                 this.socket.onmessage = this.OnMessage;
                 this.socket.onopen = this.OnOpen;
@@ -179,6 +183,7 @@
                     content.is_kefu = true;
                     content.time = msg.time;
                     this.msgList.push(content);
+                    this.trimMessages();
 
                     notify(msg.name, {
                         body: msg.content,
@@ -242,6 +247,7 @@
                 content.time = _this.getNowDate();
                 content.show_time=false;
                 _this.msgList.push(content);
+                _this.trimMessages();
                 _this.scrollBottom();
 
                 let mes = {};
@@ -272,13 +278,17 @@
             },
             getUserInfo:function(){
                 let obj=this.getCache("visitor_"+KEFU_ID);
-                var visitor_id=""
+                var visitor_id=INITIAL_VISITOR_ID;
                 var to_id=KEFU_ID;
                 if(obj){
                     visitor_id=obj.visitor_id;
                 }
                 let _this=this;
                 var extra=getQuery("extra");
+                if(!extra && (INITIAL_VISITOR_NAME || INITIAL_VISITOR_AVATAR)){
+                    var extraObj={visitorName:INITIAL_VISITOR_NAME,visitorAvatar:INITIAL_VISITOR_AVATAR};
+                    extra=btoa(unescape(encodeURIComponent(JSON.stringify(extraObj)))).replace(/=+$/, "");
+                }
                 $.post("/visitor_login",{visitor_id:visitor_id,refer:REFER,to_id:to_id,extra:extra},function(res){
                     if(res.code!=200){
                         _this.$message({
@@ -323,11 +333,17 @@
                         item.content=replaceContent(item["content"]);
                         _this.msgList.unshift(item);
                     }
+                    _this.trimMessages();
                     if(_this.messages.page==1){
                         _this.scrollBottom();
                     }
                     _this.messages.page++;
                 });
+            },
+            trimMessages:function(){
+                if(this.msgList.length > 200){
+                    this.msgList.splice(0, this.msgList.length - 200);
+                }
             },
             scrollBottom:function(){
                 var _this=this;
@@ -369,6 +385,7 @@
                         is_kefu:true,
                     }
                     _this.msgList.push(msg);
+                    _this.trimMessages();
                     _this.scrollBottom();
                     _this.alertSound();
                 });
@@ -390,11 +407,12 @@
             },
             ping:function(){
                 let _this=this;
-                let mes = {}
-                mes.type = "ping";
-                mes.data = "visitor:"+_this.visitor.visitor_id;
-                setInterval(function () {
-                    if(_this.socket!=null){
+                let mes = {type:"ping", data:"visitor:"+_this.visitor.visitor_id};
+                if(this.pingTimer){
+                    clearInterval(this.pingTimer);
+                }
+                this.pingTimer=setInterval(function () {
+                    if(_this.socket && _this.socket.readyState === WebSocket.OPEN){
                         _this.socket.send(JSON.stringify(mes));
                     }
                 },10000);
@@ -581,6 +599,11 @@
         mounted:function() {
             document.addEventListener('paste', this.onPasteUpload)
             document.addEventListener('scroll',this.textareaBlur)
+        },
+        beforeDestroy:function(){
+            if(this.pingTimer){ clearInterval(this.pingTimer); }
+            if(this.timer){ clearInterval(this.timer); }
+            if(this.socket){ this.socket.close(); }
         },
         created: function () {
             this.init();

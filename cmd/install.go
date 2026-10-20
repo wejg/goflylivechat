@@ -74,5 +74,6 @@ func install() {
 		os.Exit(1)
 	}
 
+	models.LoadConfigs()
 	log.Println("Database initialization completed successfully")
 }

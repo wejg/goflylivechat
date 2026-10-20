@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-//获取URL的GET参数
+// 获取URL的GET参数
 func GetUrlArg(r *http.Request, name string) string {
 	var arg string
 	values := r.URL.Query()
@@ -37,7 +37,7 @@ func Reverse2(s string) string {
 	return string(r)
 }
 
-//获取文件内容，可以打包到二进制
+// 获取文件内容，可以打包到二进制
 func FileGetContent(file string) string {
 	str := ""
 	box := packr.New("tmpl", "../static")
@@ -53,10 +53,6 @@ func ShowStringByte(str string) {
 	for i, c := range s {
 		fmt.Println(i, c)
 	}
-}
-func NilChannel() {
-	var ch chan int
-	ch <- 1
 }
 func Int2Str(i interface{}) string {
 	return fmt.Sprintf("%v", i)

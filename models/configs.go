@@ -1,6 +1,20 @@
 package models
 
-var CustomConfigs []Config
+import "sync"
+
+var (
+	CustomConfigs []Config
+	configMu      sync.RWMutex
+)
+
+func LoadConfigs() {
+	if DB != nil {
+		configs := FindConfigs()
+		configMu.Lock()
+		CustomConfigs = configs
+		configMu.Unlock()
+	}
+}
 
 type Config struct {
 	ID        uint   `gorm:"primary_key" json:"id"`
@@ -15,6 +29,13 @@ func UpdateConfig(userid interface{}, key string, value string) {
 	if config.ID != 0 {
 		config.ConfValue = value
 		DB.Model(&Config{}).Where("user_id = ? and conf_key = ?", userid, key).Update(config)
+		configMu.Lock()
+		for i := range CustomConfigs {
+			if CustomConfigs[i].UserId == config.UserId && CustomConfigs[i].ConfKey == config.ConfKey {
+				CustomConfigs[i] = config
+			}
+		}
+		configMu.Unlock()
 	} else {
 		newConfig := &Config{
 			ID:        0,
@@ -24,6 +45,9 @@ func UpdateConfig(userid interface{}, key string, value string) {
 			UserId:    userid.(string),
 		}
 		DB.Create(newConfig)
+		configMu.Lock()
+		CustomConfigs = append(CustomConfigs, *newConfig)
+		configMu.Unlock()
 	}
 
 }
@@ -39,6 +63,8 @@ func FindConfigsByUserId(userid interface{}) []Config {
 }
 
 func FindConfig(key string) string {
+	configMu.RLock()
+	defer configMu.RUnlock()
 	for _, config := range CustomConfigs {
 		if key == config.ConfKey {
 			return config.ConfValue

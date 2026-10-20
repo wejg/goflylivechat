@@ -29,6 +29,7 @@ services:
       GOFLY_DB_PASSWORD: ${GOFLY_DB_PASSWORD:-change-me}
       GOFLY_INSTALL_LOCK: /data/install.lock
       GOFLY_SESSION_SECRET: ${GOFLY_SESSION_SECRET:-replace-with-a-long-random-secret}
+      GOFLY_JWT_SECRET: ${GOFLY_JWT_SECRET:-replace-with-a-long-random-jwt-secret}
       GOFLY_ALLOWED_ORIGINS: ${GOFLY_ALLOWED_ORIGINS:-http://localhost:8081}
     ports:
       - "8081:8081"
