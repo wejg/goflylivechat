@@ -7,7 +7,6 @@ import (
 )
 
 func NewMidLogger() gin.HandlerFunc {
-	logger := tools.Logger()
 	return func(c *gin.Context) {
 		// 开始时间
 		startTime := time.Now()
@@ -33,8 +32,8 @@ func NewMidLogger() gin.HandlerFunc {
 		// 请求IP
 		clientIP := c.ClientIP()
 
-		//日志格式
-		logger.Infof("| %3d | %13v | %15s | %s | %s |",
+		// 每次取 logger，让跨天轮转生效；只在闭包外取一次会一直写启动当天的文件。
+		tools.Logger().Infof("| %3d | %13v | %15s | %s | %s |",
 			statusCode,
 			latencyTime,
 			clientIP,

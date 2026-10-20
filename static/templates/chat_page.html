@@ -311,7 +311,16 @@
                     visitor_id: this.visitor.visitor_id,
                 }
                 let _this=this;
-                $.get("/2/messagesPages",params,function(res){
+                $.ajax({
+                    url:"/2/messagesPages",
+                    type:"get",
+                    data:params,
+                    // 访客 token 由 /visitor_login 下发，用来证明「我就是这个访客」。
+                    headers:{"token":this.visitor.token||""},
+                    success:function(res){
+                    if(res.code!=200){
+                        return;
+                    }
                     let msgList=res.result.list;
                     if(msgList.length>=_this.messages.pagesize){
                         _this.showLoadMore=true;
@@ -338,6 +347,7 @@
                         _this.scrollBottom();
                     }
                     _this.messages.page++;
+                    }
                 });
             },
             trimMessages:function(){

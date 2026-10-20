@@ -29,12 +29,20 @@ func LoginCheckPass(c *gin.Context) {
 	info := models.FindUser(username)
 
 	// Authentication failed case
-	if info.Name == "" || info.Password != tools.Md5(password) {
+	matched, needsUpgrade := tools.CheckPassword(info.Password, password)
+	if info.Name == "" || !matched {
 		c.JSON(200, gin.H{
 			"code":    401,
 			"message": "Incorrect username or password", // User-friendly message
 		})
 		return
+	}
+
+	// 旧的 MD5 记录登录成功后就地升级成 bcrypt，用户无感知。
+	if needsUpgrade {
+		if hashed, err := tools.HashPassword(password); err == nil {
+			models.UpdateUserPass(info.Name, hashed)
+		}
 	}
 
 	// Prepare user session data

@@ -3,7 +3,6 @@ package ws
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"log"
@@ -45,13 +44,13 @@ func NewKefuServer(c *gin.Context) {
 	for {
 		//接受消息
 		var receive []byte
-		messageType, receive, err := conn.ReadMessage()
+		_, receive, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("ws/user.go ", err)
 			return
 		}
 		_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
-		if !enqueueMessage(&Message{conn: conn, content: receive, context: c, messageType: messageType}) {
+		if !enqueueMessage(&Message{user: &kefu, content: receive}) {
 			return
 		}
 	}
@@ -59,15 +58,7 @@ func NewKefuServer(c *gin.Context) {
 func AddKefuToList(kefu *User) {
 	oldUser, ok := KefuList.Get(kefu.Id)
 	if ok && oldUser != nil {
-		msg := TypeMessage{
-			Type: "close",
-			Data: kefu.Id,
-		}
-		str, _ := json.Marshal(msg)
-		oldUser.Mux.Lock()
-		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
-		oldUser.Mux.Unlock()
-		if err != nil {
+		if err := WriteJSON(oldUser, TypeMessage{Type: "close", Data: kefu.Id}); err != nil {
 			oldUser.Conn.Close()
 		}
 	}
@@ -77,14 +68,12 @@ func AddKefuToList(kefu *User) {
 // 给指定客服发消息
 func OneKefuMessage(toId string, str []byte) {
 	kefu, ok := KefuList.Get(toId)
-	if ok {
-		kefu.Mux.Lock()
-		defer kefu.Mux.Unlock()
-		_ = kefu.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		if err := kefu.Conn.WriteMessage(websocket.TextMessage, str); err != nil {
-			KefuList.Delete(toId)
-			tools.Logger().Println("send_kefu_message", err)
-		}
+	if !ok || kefu == nil {
+		return
+	}
+	if err := WriteTo(kefu, str); err != nil {
+		KefuList.Delete(toId)
+		tools.Logger().Println("send_kefu_message", err)
 	}
 }
 func KefuMessage(visitorId, content string, kefuInfo models.User) {
@@ -109,15 +98,11 @@ func SendPingToKefuClient() {
 	msg := TypeMessage{
 		Type: "many pong",
 	}
-	str, _ := json.Marshal(msg)
 	for _, kefu := range KefuList.Snapshot() {
 		if kefu == nil {
 			continue
 		}
-		kefu.Mux.Lock()
-		err := kefu.Conn.WriteMessage(websocket.TextMessage, str)
-		kefu.Mux.Unlock()
-		if err != nil {
+		if err := WriteJSON(kefu, msg); err != nil {
 			log.Println("定时发送ping给客服，失败", err.Error())
 			KefuList.Delete(kefu.Id)
 		}

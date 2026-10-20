@@ -175,8 +175,17 @@ CHAT_WIDGET.openChatWindow = function() {
 };
 
 CHAT_WIDGET.closeChatWindow = function() {
-    document.getElementById(this.containerId).style.display = 'none';
+    const container = document.getElementById(this.containerId);
+    if (container) {
+        // 移除 iframe 而不是只隐藏：隐藏的 iframe 会继续跑 WebSocket 和心跳定时器。
+        container.remove();
+    }
     this.isChatOpen = false;
+    if (this.titleFlashTimer) {
+        clearInterval(this.titleFlashTimer);
+        this.titleFlashTimer = null;
+        document.title = this.originalPageTitle;
+    }
     document.getElementById('chat-widget-button').style.display = 'flex';
 };
 

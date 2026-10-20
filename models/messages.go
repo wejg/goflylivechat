@@ -28,7 +28,6 @@ type MessageKefu struct {
 }
 
 func CreateMessage(kefu_id string, visitor_id string, content string, mes_type string) {
-	DB.Exec("set names utf8mb4")
 	v := &Message{
 		KefuId:    kefu_id,
 		VisitorId: visitor_id,
@@ -56,7 +55,7 @@ func ReadMessageByVisitorId(visitor_id string) {
 // 获取未读数
 func FindUnreadMessageNumByVisitorId(visitor_id string) uint {
 	var count uint
-	DB.Where("visitor_id=? and status=?", visitor_id, "unread").Count(&count)
+	DB.Model(&Message{}).Where("visitor_id=? and status=?", visitor_id, "unread").Count(&count)
 	return count
 }
 

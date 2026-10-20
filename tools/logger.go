@@ -2,10 +2,10 @@ package tools
 
 import (
 	"github.com/sirupsen/logrus"
-	"log"
 	"os"
 	"path"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,31 +14,44 @@ var (
 	logFile   *os.File
 	logDate   string
 	logMu     sync.Mutex
+	// 当前日志文件对应的日期，供无锁快路径判断是否需要轮转。
+	currentDate atomic.Value
+	ready       atomic.Bool
 )
 
+// Logger 每次请求都会调用，所以常见路径（同一天、已初始化）不加锁。
+// 只有跨天或首次初始化才走加锁的慢路径。
 func Logger() *logrus.Logger {
+	today := time.Now().Format("2006-01-02")
+	if ready.Load() && currentDate.Load() == today {
+		return logrusObj
+	}
+	return rotateLogger(today)
+}
+
+func rotateLogger(date string) *logrus.Logger {
 	logMu.Lock()
 	defer logMu.Unlock()
 
 	if logrusObj == nil {
 		logrusObj = logrus.New()
-		logrusObj.SetLevel(logrus.DebugLevel)
+		logrusObj.SetLevel(logrus.InfoLevel)
 		logrusObj.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05"})
 	}
-	if err := rotateLogLocked(time.Now()); err != nil {
+	if err := rotateLogLocked(date); err != nil {
 		logrusObj.Out = os.Stderr
 	}
+	ready.Store(true)
 	return logrusObj
 }
 
-func rotateLogLocked(now time.Time) error {
-	date := now.Format("2006-01-02")
+func rotateLogLocked(date string) error {
 	if logFile != nil && logDate == date {
 		return nil
 	}
 
 	logFilePath := path.Join(mustGetwd(), "logs")
-	if err := os.MkdirAll(logFilePath, 0777); err != nil {
+	if err := os.MkdirAll(logFilePath, 0o755); err != nil {
 		return err
 	}
 	fileName := path.Join(logFilePath, date+".log")
@@ -52,6 +65,7 @@ func rotateLogLocked(now time.Time) error {
 	logFile = file
 	logDate = date
 	logrusObj.Out = logFile
+	currentDate.Store(date)
 	return nil
 }
 
@@ -60,18 +74,4 @@ func mustGetwd() string {
 		return dir
 	}
 	return "."
-}
-
-// setOutputFile is kept for package callers that still use the old helper.
-func setOutputFile() (*os.File, error) {
-	logMu.Lock()
-	defer logMu.Unlock()
-	if logrusObj == nil {
-		logrusObj = logrus.New()
-	}
-	if err := rotateLogLocked(time.Now()); err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	return logFile, nil
 }

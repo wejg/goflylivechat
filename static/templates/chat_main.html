@@ -702,7 +702,15 @@
                     visitor_id: this.currentGuest,
                 }
                 let _this=this;
-                $.get("/2/messagesPages",params,function(res){
+                $.ajax({
+                    url:"/2/messagesPages",
+                    type:"get",
+                    data:params,
+                    headers:{"token":localStorage.getItem("token")},
+                    success:function(res){
+                    if(res.code!=200){
+                        return;
+                    }
                     let msgList=res.result.list;
                     if(msgList.length>=_this.messages.pagesize){
                         _this.showLoadMore=true;
@@ -730,55 +738,17 @@
                         _this.scrollBottom();
                     }
                     _this.messages.page++;
-                });
-            },
-            //获取信息列表
-            getMesssagesByVisitorId(visitorId,isAll){
-                let _this=this;
-                $.ajax({
-                    type:"get",
-                    url:"/messages?visitorId="+visitorId,
-                    headers:{
-                        "token":localStorage.getItem("token")
-                    },
-                    success: function(data) {
-                        if(data.code==200 && data.result!=null){
-                            let msgList=data.result;
-                            _this.msgList=[];
-                            if(!isAll&&msgList.length>10){
-                                var i=msgList.length-10
-                            }else{
-                                var i=0;
-                            }
-                            for(;i<msgList.length;i++){
-                                let visitorMes=msgList[i];
-                                let content = {}
-                                if(visitorMes["mes_type"]=="kefu"){
-                                    content.is_kefu = true;
-                                    content.avator = visitorMes["kefu_avator"];
-                                    content.name = visitorMes["kefu_name"];
-                                }else{
-                                    content.is_kefu = false;
-                                    content.avator = visitorMes["visitor_avator"];
-                                    content.name = visitorMes["visitor_name"];
-                                }
-                                content.content = replaceContent(visitorMes["content"]);
-                                content.time = visitorMes["time"];
-                                _this.msgList.push(content);
-                                _this.scrollBottom();
-                            }
-                        }
-                        if(data.code!=200){
-                            _this.$message({
-                                message: data.msg,
-                                type: 'error'
-                            });
-                        }
-                        if(data.code==400){
-                            window.location.href="/login";
-                        }
                     }
                 });
+            },
+            //获取信息列表：走分页接口，一次最多取 20 条。
+            //旧实现调用的 /messages 没有 LIMIT，老会话会把整段历史读进内存。
+            getMesssagesByVisitorId(visitorId,isAll){
+                let _this=this;
+                this.currentGuest=visitorId;
+                this.msgList=[];
+                this.messages.page=1;
+                this.getHistoryMessage();
             },
             //获取客服信息
             getVistorInfo(vid){

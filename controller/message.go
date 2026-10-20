@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"goflylivechat/ws"
+	"mime/multipart"
 	"os"
 	"path"
 	"strconv"
@@ -89,7 +89,7 @@ func SendMessageV2(c *gin.Context) {
 		//ws.KefuMessage(vistorInfo.VisitorId, content, kefuInfo)
 		kefu, ok := ws.KefuList.Get(kefuInfo.Name)
 		if !ok || kefu == nil {
-			go SendNoticeEmail(content+"|"+vistorInfo.Name, content)
+			go SendNoticeEmail(kefuInfo.Name, content+"|"+vistorInfo.Name, content)
 		}
 		go ws.VisitorAutoReply(vistorInfo, kefuInfo, content)
 		go models.UpdateVisitorLastMessage(vistorInfo.VisitorId, content)
@@ -159,15 +159,17 @@ func SendVisitorNotice(c *gin.Context) {
 		})
 		return
 	}
+	// 只广播给调用者自己的访客，避免一个客服向全站访客推送。
+	kefuName, _ := c.Get("kefu_name")
 	msg := ws.TypeMessage{
 		Type: "notice",
 		Data: notice,
 	}
-	str, _ := json.Marshal(msg)
 	for _, visitor := range ws.ClientList.Snapshot() {
-		visitor.Mux.Lock()
-		visitor.Conn.WriteMessage(websocket.TextMessage, str)
-		visitor.Mux.Unlock()
+		if visitor.RouteTo() != kefuName {
+			continue
+		}
+		_ = ws.WriteJSON(visitor, msg)
 	}
 	c.JSON(200, gin.H{
 		"code": 200,
@@ -184,19 +186,21 @@ func SendCloseMessageV2(c *gin.Context) {
 		return
 	}
 
+	kefuName, _ := c.Get("kefu_name")
 	oldUser, ok := ws.ClientList.Get(visitorId)
 	if oldUser != nil && ok {
-		msg := ws.TypeMessage{
+		// 只能关闭分配给自己的访客会话。
+		if oldUser.RouteTo() != kefuName {
+			c.JSON(200, gin.H{"code": 403, "msg": "无权操作该访客"})
+			return
+		}
+		err := ws.WriteJSON(oldUser, ws.TypeMessage{
 			Type: "force_close",
 			Data: visitorId,
-		}
-		str, _ := json.Marshal(msg)
-		oldUser.Mux.Lock()
-		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
-		oldUser.Mux.Unlock()
+		})
 		oldUser.Conn.Close()
 		ws.ClientList.Delete(visitorId)
-		tools.Logger().Println("close_message", oldUser, err)
+		tools.Logger().Println("close_message", visitorId, err)
 	}
 	c.JSON(200, gin.H{
 		"code": 200,
@@ -211,44 +215,64 @@ func UploadImg(c *gin.Context) {
 			"msg":  "上传失败!",
 		})
 		return
-	} else {
-
-		fileExt := strings.ToLower(path.Ext(f.Filename))
-		if f.Size > 10*1024*1024 {
-			c.JSON(200, gin.H{"code": 400, "msg": "上传失败!图片不允许超过 10M"})
-			return
-		}
-		if fileExt != ".png" && fileExt != ".jpg" && fileExt != ".gif" && fileExt != ".jpeg" {
-			c.JSON(200, gin.H{
-				"code": 400,
-				"msg":  "上传失败!只允许png,jpg,gif,jpeg文件",
-			})
-			return
-		}
-		isMainUploadExist, _ := tools.IsFileExist(common.Upload)
-		if !isMainUploadExist {
-			os.Mkdir(common.Upload, os.ModePerm)
-		}
-		fileName := tools.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
-		fildDir := fmt.Sprintf("%s%d%s/", common.Upload, time.Now().Year(), time.Now().Month().String())
-		isExist, _ := tools.IsFileExist(fildDir)
-		if !isExist {
-			os.Mkdir(fildDir, os.ModePerm)
-		}
-		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		if err := c.SaveUploadedFile(f, filepath); err != nil {
-			c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
-			return
-		}
-		c.JSON(200, gin.H{
-			"code": 200,
-			"msg":  "上传成功!",
-			"result": gin.H{
-				"path": filepath,
-			},
-		})
 	}
+	filepath, _, ok := saveUpload(c, f, allowedImageExts, maxImageSize, "上传失败!图片不允许超过 10M")
+	if !ok {
+		return
+	}
+	c.JSON(200, gin.H{
+		"code": 200,
+		"msg":  "上传成功!",
+		"result": gin.H{
+			"path": filepath,
+		},
+	})
 }
+
+// 允许上传的附件类型。白名单而非黑名单：
+// 上传目录通过 /static 直接对外，一旦能传 .html/.svg 就等于在本站域名下托管脚本。
+var allowedFileExts = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true,
+	".pdf": true, ".txt": true, ".csv": true,
+	".doc": true, ".docx": true, ".xls": true, ".xlsx": true, ".ppt": true, ".pptx": true,
+	".zip": true, ".rar": true, ".7z": true,
+	".mp3": true, ".mp4": true,
+}
+
+var allowedImageExts = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true,
+}
+
+const (
+	maxImageSize = 10 * 1024 * 1024
+	maxFileSize  = 20 * 1024 * 1024
+)
+
+// saveUpload 承载两个上传接口的公共逻辑：类型校验、大小校验、落盘。
+func saveUpload(c *gin.Context, f *multipart.FileHeader, allowed map[string]bool, maxSize int64, tip string) (string, string, bool) {
+	fileExt := strings.ToLower(path.Ext(f.Filename))
+	if f.Size > maxSize {
+		c.JSON(200, gin.H{"code": 400, "msg": tip})
+		return "", "", false
+	}
+	if !allowed[fileExt] {
+		c.JSON(200, gin.H{"code": 400, "msg": "上传失败!不支持的文件类型"})
+		return "", "", false
+	}
+	fildDir := fmt.Sprintf("%s%d%s/", common.Upload, time.Now().Year(), time.Now().Month().String())
+	if err := os.MkdirAll(fildDir, 0o755); err != nil {
+		c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
+		return "", "", false
+	}
+	fileName := tools.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
+	filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
+	if err := c.SaveUploadedFile(f, filepath); err != nil {
+		c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
+		return "", "", false
+	}
+	return filepath, fileExt, true
+}
+
 func UploadFile(c *gin.Context) {
 	f, err := c.FormFile("realfile")
 	if err != nil {
@@ -257,75 +281,28 @@ func UploadFile(c *gin.Context) {
 			"msg":  "上传失败!",
 		})
 		return
-	} else {
-
-		fileExt := strings.ToLower(path.Ext(f.Filename))
-		if f.Size >= 90*1024*1024 {
-			c.JSON(200, gin.H{
-				"code": 400,
-				"msg":  "上传失败!不允许超过90M",
-			})
-			return
-		}
-
-		fileName := tools.Md5(fmt.Sprintf("%s%s", f.Filename, time.Now().String()))
-		fildDir := fmt.Sprintf("%s%d%s/", common.Upload, time.Now().Year(), time.Now().Month().String())
-		isExist, _ := tools.IsFileExist(fildDir)
-		if !isExist {
-			os.Mkdir(fildDir, os.ModePerm)
-		}
-		filepath := fmt.Sprintf("%s%s%s", fildDir, fileName, fileExt)
-		if err := c.SaveUploadedFile(f, filepath); err != nil {
-			c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
-			return
-		}
-		c.JSON(200, gin.H{
-			"code": 200,
-			"msg":  "上传成功!",
-			"result": gin.H{
-				"path": filepath,
-				"ext":  fileExt,
-				"size": f.Size,
-				"name": f.Filename,
-			},
-		})
 	}
-}
-func GetMessagesV2(c *gin.Context) {
-	visitorId := c.Query("visitor_id")
-	messages := models.FindMessageByVisitorId(visitorId)
-	//result := make([]map[string]interface{}, 0)
-	chatMessages := make([]ChatMessage, 0)
-	var visitor models.Visitor
-	var kefu models.User
-	for _, message := range messages {
-		//item := make(map[string]interface{})
-		if visitor.Name == "" || kefu.Name == "" {
-			kefu = models.FindUser(message.KefuId)
-			visitor = models.FindVisitorByVistorId(message.VisitorId)
-		}
-		var chatMessage ChatMessage
-		chatMessage.Time = message.CreatedAt.Format("2006-01-02 15:04:05")
-		chatMessage.Content = message.Content
-		chatMessage.MesType = message.MesType
-		if message.MesType == "kefu" {
-			chatMessage.Name = kefu.Nickname
-			chatMessage.Avator = kefu.Avator
-		} else {
-			chatMessage.Name = visitor.Name
-			chatMessage.Avator = visitor.Avator
-		}
-		chatMessages = append(chatMessages, chatMessage)
+	filepath, fileExt, ok := saveUpload(c, f, allowedFileExts, maxFileSize, "上传失败!不允许超过20M")
+	if !ok {
+		return
 	}
-	models.ReadMessageByVisitorId(visitorId)
 	c.JSON(200, gin.H{
-		"code":   200,
-		"msg":    "ok",
-		"result": chatMessages,
+		"code": 200,
+		"msg":  "上传成功!",
+		"result": gin.H{
+			"path": filepath,
+			"ext":  fileExt,
+			"size": f.Size,
+			"name": f.Filename,
+		},
 	})
 }
 func GetMessagespages(c *gin.Context) {
 	visitorId := c.Query("visitor_id")
+	if !visitorScopeAllows(c, visitorId) {
+		c.JSON(200, gin.H{"code": 403, "msg": "无权访问该会话"})
+		return
+	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pagesize", "10"))
 	if page < 1 {

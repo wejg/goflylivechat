@@ -40,15 +40,6 @@ func FindVisitorByVistorId(visitorId string) Visitor {
 	DB.Where("visitor_id = ?", visitorId).First(&v)
 	return v
 }
-func FindVisitors(page uint, pagesize uint) []Visitor {
-	offset := (page - 1) * pagesize
-	if offset < 0 {
-		offset = 0
-	}
-	var visitors []Visitor
-	DB.Offset(offset).Limit(pagesize).Order("status desc, updated_at desc").Find(&visitors)
-	return visitors
-}
 func FindVisitorsByKefuId(page uint, pagesize uint, kefuId string) []Visitor {
 	if page == 0 {
 		page = 1
@@ -66,10 +57,11 @@ func FindVisitorsByKefuId(page uint, pagesize uint, kefuId string) []Visitor {
 	DB.Where("to_id=?", kefuId).Offset(offset).Limit(pagesize).Order("updated_at desc").Find(&visitors)
 	return visitors
 }
-func FindVisitorsOnline() []Visitor {
-	var visitors []Visitor
-	DB.Where("status = ?", 1).Find(&visitors)
-	return visitors
+// FindOnlineVisitorIds 只取 visitor_id，避免把整行读进内存。
+func FindOnlineVisitorIds() []string {
+	var ids []string
+	DB.Model(&Visitor{}).Where("status = ?", 1).Pluck("visitor_id", &ids)
+	return ids
 }
 func UpdateVisitorLastMessage(visitorId, lastMessage string) {
 	visitor := Visitor{}
@@ -78,6 +70,14 @@ func UpdateVisitorLastMessage(visitorId, lastMessage string) {
 func UpdateVisitorStatus(visitorId string, status uint) {
 	visitor := Visitor{}
 	DB.Model(&visitor).Where("visitor_id = ?", visitorId).Update("status", status)
+}
+
+// UpdateVisitorsOffline 用一条 UPDATE 批量下线，代替每个访客一条语句一个事务。
+func UpdateVisitorsOffline(visitorIds []string) {
+	if len(visitorIds) == 0 {
+		return
+	}
+	DB.Model(&Visitor{}).Where("visitor_id IN (?)", visitorIds).Update("status", 0)
 }
 func UpdateVisitor(name, avator, visitorId string, status uint, clientIp string, sourceIp string, refer, extra string) {
 	visitor := &Visitor{

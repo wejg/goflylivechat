@@ -41,7 +41,8 @@ func PostKefuPass(c *gin.Context) {
 		return
 	}
 	user := models.FindUser(kefuName.(string))
-	if user.Password != tools.Md5(old_pass) {
+	matched, _ := tools.CheckPassword(user.Password, old_pass)
+	if !matched {
 		c.JSON(200, gin.H{
 			"code":   400,
 			"msg":    "旧密码不正确",
@@ -49,7 +50,12 @@ func PostKefuPass(c *gin.Context) {
 		})
 		return
 	}
-	models.UpdateUserPass(kefuName.(string), tools.Md5(newPass))
+	hashed, err := tools.HashPassword(newPass)
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "密码更新失败", "result": ""})
+		return
+	}
+	models.UpdateUserPass(kefuName.(string), hashed)
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",
@@ -182,7 +188,16 @@ func PostKefuRegister(c *gin.Context) {
 		return
 	}
 
-	userID := models.CreateUser(name, tools.Md5(password), avatar, nickname)
+	hashed, err := tools.HashPassword(password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":   500,
+			"msg":    "Registration Failed",
+			"result": nil,
+		})
+		return
+	}
+	userID := models.CreateUser(name, hashed, avatar, nickname)
 	if userID == 0 {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":   500,
@@ -206,7 +221,12 @@ func PostKefuInfo(c *gin.Context) {
 	avator := c.PostForm("avator")
 	nickname := c.PostForm("nickname")
 	if password != "" {
-		password = tools.Md5(password)
+		hashed, err := tools.HashPassword(password)
+		if err != nil {
+			c.JSON(200, gin.H{"code": 500, "msg": "密码更新失败"})
+			return
+		}
+		password = hashed
 	}
 	if name == "" {
 		c.JSON(200, gin.H{

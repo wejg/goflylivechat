@@ -9,6 +9,7 @@ import (
 	"goflylivechat/tools"
 	"goflylivechat/ws"
 	"strconv"
+	"time"
 )
 
 //	func PostVisitor(c *gin.Context) {
@@ -128,16 +129,37 @@ func PostVisitorLogin(c *gin.Context) {
 	visitor.VisitorId = id
 
 	//各种通知
-	go SendNoticeEmail(visitor.Name, " incoming!")
+	go SendNoticeEmail(kefuInfo.Name, visitor.Name, " incoming!")
 	//go SendAppGetuiPush(kefuInfo.Name, visitor.Name, visitor.Name+" incoming!")
 	go SendVisitorLoginNotice(kefuInfo.Name, visitor.Name, visitor.Avator, visitor.Name+" incoming!", visitor.VisitorId)
 	go ws.VisitorOnline(kefuInfo.Name, visitor)
-	//go SendServerJiang(visitor.Name, "来了", c.Request.Host)
+
+	// 下发访客 token，后续取历史消息 / 未读数时用来证明「我就是这个访客」。
+	visitorToken, err := tools.MakeToken(map[string]interface{}{
+		"visitor_id":  visitor.VisitorId,
+		"create_time": time.Now().Unix(),
+	})
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "登录失败"})
+		return
+	}
 
 	c.JSON(200, gin.H{
-		"code":   200,
-		"msg":    "ok",
-		"result": visitor,
+		"code": 200,
+		"msg":  "ok",
+		"result": gin.H{
+			"id":           visitor.ID,
+			"name":         visitor.Name,
+			"avator":       visitor.Avator,
+			"visitor_id":   visitor.VisitorId,
+			"to_id":        visitor.ToId,
+			"client_ip":    visitor.ClientIp,
+			"city":         visitor.City,
+			"refer":        visitor.Refer,
+			"created_at":   visitor.CreatedAt,
+			"last_message": visitor.LastMessage,
+			"token":        visitorToken,
+		},
 	})
 }
 func GetVisitor(c *gin.Context) {
@@ -178,39 +200,18 @@ func GetVisitors(c *gin.Context) {
 	})
 }
 
-// @Summary 获取访客聊天信息接口
-// @Produce  json
-// @Accept multipart/form-data
-// @Param visitorId query   string true "访客ID"
-// @Param token header string true "认证token"
-// @Success 200 {object} controller.Response
-// @Failure 200 {object} controller.Response
-// @Router /messages [get]
-func GetVisitorMessage(c *gin.Context) {
-	visitorId := c.Query("visitorId")
-
-	query := "message.visitor_id= ?"
-	messages := models.FindMessageByWhere(query, visitorId)
-	result := make([]map[string]interface{}, 0)
-	for _, message := range messages {
-		item := make(map[string]interface{})
-
-		item["time"] = message.CreatedAt.Format("2006-01-02 15:04:05")
-		item["content"] = message.Content
-		item["mes_type"] = message.MesType
-		item["visitor_name"] = message.VisitorName
-		item["visitor_avator"] = message.VisitorAvator
-		item["kefu_name"] = message.KefuName
-		item["kefu_avator"] = message.KefuAvator
-		result = append(result, item)
-
+// visitorScopeAllows 在 VisitorScope 放行后再确认归属：
+// 访客只能访问自己，客服只能访问分配给自己的访客。
+// 中间件已经保证两者必居其一，这里负责客服侧的归属判断。
+func visitorScopeAllows(c *gin.Context, visitorID string) bool {
+	if id, ok := c.Get("visitor_id"); ok && id == visitorID {
+		return true
 	}
-	go models.ReadMessageByVisitorId(visitorId)
-	c.JSON(200, gin.H{
-		"code":   200,
-		"msg":    "ok",
-		"result": result,
-	})
+	kefuName, ok := c.Get("kefu_name")
+	if !ok {
+		return false
+	}
+	return models.FindVisitorByVistorId(visitorID).ToId == kefuName
 }
 
 func GetVisitorMessageStatus(c *gin.Context) {
@@ -220,6 +221,10 @@ func GetVisitorMessageStatus(c *gin.Context) {
 	}
 	if visitorID == "" {
 		c.JSON(200, gin.H{"code": 400, "msg": "visitor_id不能为空"})
+		return
+	}
+	if !visitorScopeAllows(c, visitorID) {
+		c.JSON(200, gin.H{"code": 403, "msg": "无权访问该会话"})
 		return
 	}
 	c.JSON(200, gin.H{
@@ -243,49 +248,12 @@ func MarkVisitorMessageRead(c *gin.Context) {
 		c.JSON(200, gin.H{"code": 400, "msg": "visitor_id不能为空"})
 		return
 	}
+	if !visitorScopeAllows(c, visitorID) {
+		c.JSON(200, gin.H{"code": 403, "msg": "无权访问该会话"})
+		return
+	}
 	models.ReadMessageByVisitorId(visitorID)
 	c.JSON(200, gin.H{"code": 200, "msg": "ok"})
-}
-
-// @Summary 获取在线访客列表接口
-// @Produce  json
-// @Success 200 {object} controller.Response
-// @Failure 200 {object} controller.Response
-// @Router /visitors_online [get]
-func GetVisitorOnlines(c *gin.Context) {
-	users := make([]map[string]string, 0)
-	visitorIds := make([]string, 0)
-	for _, visitor := range ws.ClientList.Snapshot() {
-		userInfo := make(map[string]string)
-		userInfo["uid"] = visitor.Id
-		userInfo["name"] = visitor.Name
-		userInfo["avator"] = visitor.Avator
-		users = append(users, userInfo)
-		visitorIds = append(visitorIds, visitor.Id)
-	}
-
-	//查询最新消息
-	messages := models.FindLastMessage(visitorIds)
-	temp := make(map[string]string, 0)
-	for _, mes := range messages {
-		temp[mes.VisitorId] = mes.Content
-	}
-	for _, user := range users {
-		user["last_message"] = temp[user["uid"]]
-	}
-
-	tcps := make([]string, 0)
-	for ip, _ := range clientTcpList {
-		tcps = append(tcps, ip)
-	}
-	c.JSON(200, gin.H{
-		"code": 200,
-		"msg":  "ok",
-		"result": gin.H{
-			"ws":  users,
-			"tcp": tcps,
-		},
-	})
 }
 
 // @Summary 获取客服的在线访客列表接口
@@ -322,10 +290,6 @@ func GetKefusVisitorOnlines(c *gin.Context) {
 		}
 	}
 
-	tcps := make([]string, 0)
-	for ip, _ := range clientTcpList {
-		tcps = append(tcps, ip)
-	}
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",

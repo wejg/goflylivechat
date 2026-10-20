@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
  `id` int(11) NOT NULL AUTO_INCREMENT,
  `name` varchar(50) NOT NULL DEFAULT '',
- `password` varchar(50) NOT NULL DEFAULT '',
+ `password` varchar(100) NOT NULL DEFAULT '',
  `nickname` varchar(50) NOT NULL DEFAULT '',
  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
  `updated_at` timestamp NULL DEFAULT NULL,
@@ -112,3 +112,26 @@ CREATE TABLE `reply_item` (
  KEY `user_id` (`user_id`),
  KEY `group_id` (`group_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `role`;
+CREATE TABLE `role` (
+ `id` int(11) NOT NULL AUTO_INCREMENT,
+ `name` varchar(50) NOT NULL DEFAULT '',
+ `method` varchar(255) NOT NULL DEFAULT '*',
+ `path` varchar(2048) NOT NULL DEFAULT '*',
+ PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO `role` (`id`, `name`, `method`, `path`) VALUES
+(1, 'Administrator', '*', '*'),
+(2, 'Agent', '*', '*');
+
+DROP TABLE IF EXISTS `user_role`;
+CREATE TABLE `user_role` (
+ `id` int(11) NOT NULL AUTO_INCREMENT,
+ `user_id` varchar(50) NOT NULL DEFAULT '',
+ `role_id` int(11) NOT NULL DEFAULT '0',
+ PRIMARY KEY (`id`),
+ KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO `user_role` (`id`, `user_id`, `role_id`) VALUES
+(1, '1', 1);

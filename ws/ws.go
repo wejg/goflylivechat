@@ -2,14 +2,13 @@ package ws
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"goflylivechat/common"
 	"goflylivechat/internal/registry"
 	"goflylivechat/models"
 	"goflylivechat/tools"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -54,11 +53,8 @@ func (u *User) SetRouteTo(toID string) {
 }
 
 type Message struct {
-	conn        *websocket.Conn
-	context     *gin.Context
-	content     []byte
-	messageType int
-	Mux         sync.Mutex
+	user    *User
+	content []byte
 }
 type TypeMessage struct {
 	Type interface{} `json:"type"`
@@ -84,12 +80,33 @@ var KefuList = registry.New[*User]()
 var message = make(chan *Message, 256)
 
 const (
-	wsReadLimit   = 16 * 1024
-	wsReadTimeout = 90 * time.Second
+	wsReadLimit    = 16 * 1024
+	wsReadTimeout  = 90 * time.Second
+	wsWriteTimeout = 10 * time.Second
 )
 
+// WriteTo 串行化单条连接的写入，并统一设置写超时。
+// 所有对 User 连接的写入都必须走这里，否则半死连接会在持锁状态下阻塞到 TCP 自身超时。
+func WriteTo(u *User, data []byte) error {
+	if u == nil || u.Conn == nil {
+		return errors.New("nil connection")
+	}
+	u.Mux.Lock()
+	defer u.Mux.Unlock()
+	_ = u.Conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+	return u.Conn.WriteMessage(websocket.TextMessage, data)
+}
+
+// WriteJSON 是 WriteTo 的便捷封装，直接写入序列化后的消息。
+func WriteJSON(u *User, msg TypeMessage) error {
+	str, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return WriteTo(u, str)
+}
+
 var upgrader = websocket.Upgrader{}
-var Mux sync.RWMutex
 
 func init() {
 	upgrader = websocket.Upgrader{
@@ -105,18 +122,12 @@ func SendServerJiang(title string, content string, domain string) string {
 	noticeServerJiang, err := strconv.ParseBool(models.FindConfig("NoticeServerJiang"))
 	serverJiangAPI := models.FindConfig("ServerJiangAPI")
 	if err != nil || !noticeServerJiang || serverJiangAPI == "" {
-		log.Println("do not notice serverjiang:", serverJiangAPI, noticeServerJiang)
 		return ""
 	}
 	sendStr := fmt.Sprintf("%s%s", title, content)
 	desp := title + ":" + content + "[登录](http://" + domain + "/main)"
 	url := serverJiangAPI + "?text=" + sendStr + "&desp=" + desp
-	//log.Println(url)
-	res := tools.Get(url)
-	return res
-}
-func SendFlyServerJiang(title string, content string, domain string) string {
-	return ""
+	return tools.Get(url)
 }
 
 // 定时给更新数据库状态
@@ -124,15 +135,16 @@ func UpdateVisitorStatusCron() {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		visitors := models.FindVisitorsOnline()
-		for _, visitor := range visitors {
-			if visitor.VisitorId == "" {
+		offline := make([]string, 0)
+		for _, visitorId := range models.FindOnlineVisitorIds() {
+			if visitorId == "" {
 				continue
 			}
-			if _, ok := ClientList.Get(visitor.VisitorId); !ok {
-				models.UpdateVisitorStatus(visitor.VisitorId, 0)
+			if _, ok := ClientList.Get(visitorId); !ok {
+				offline = append(offline, visitorId)
 			}
 		}
+		models.UpdateVisitorsOffline(offline)
 		SendPingToKefuClient()
 	}
 }
@@ -157,11 +169,7 @@ func WsServerBackend() {
 					visitor.Touch()
 				}
 			}
-			str, _ := json.Marshal(TypeMessage{Type: "pong"})
-			msg.Mux.Lock()
-			_ = msg.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			_ = msg.conn.WriteMessage(websocket.TextMessage, str)
-			msg.Mux.Unlock()
+			_ = WriteJSON(msg.user, TypeMessage{Type: "pong"})
 		case "inputing":
 			var data struct {
 				From string `json:"from"`
@@ -173,6 +181,34 @@ func WsServerBackend() {
 			if tools.LimitFreqSingle("inputing:"+data.From, 1, 2) {
 				OneKefuMessage(data.To, msg.content)
 			}
+		case "kfOnline", "kfConnect":
+			// 客服上线 / 接手会话：把「客服已就位」推给对应访客。
+			// kfOnline 的 to_id 为空时表示仅上线，没有指定访客，不需要推送。
+			var data struct {
+				Id     string `json:"id"`
+				Name   string `json:"name"`
+				Avator string `json:"avator"`
+				ToId   string `json:"to_id"`
+			}
+			if err := json.Unmarshal(typeMsg.Data, &data); err != nil || data.ToId == "" {
+				continue
+			}
+			visitor, ok := ClientList.Get(data.ToId)
+			if !ok || visitor == nil {
+				continue
+			}
+			// 只允许推给确实分配给该客服的访客，避免任意客服向任意访客推送。
+			if msg.user == nil || visitor.RouteTo() != msg.user.Id {
+				continue
+			}
+			_ = WriteJSON(visitor, TypeMessage{
+				Type: "kfOnline",
+				Data: map[string]string{
+					"id":     data.Id,
+					"name":   data.Name,
+					"avator": data.Avator,
+				},
+			})
 		}
 	}
 }

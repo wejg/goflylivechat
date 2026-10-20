@@ -11,20 +11,6 @@ import (
 	"time"
 )
 
-func SendServerJiang(title string, content string, domain string) string {
-	noticeServerJiang, err := strconv.ParseBool(models.FindConfig("NoticeServerJiang"))
-	serverJiangAPI := models.FindConfig("ServerJiangAPI")
-	if err != nil || !noticeServerJiang || serverJiangAPI == "" {
-		log.Println("do not notice serverjiang:", serverJiangAPI, noticeServerJiang)
-		return ""
-	}
-	sendStr := fmt.Sprintf("%s%s", title, content)
-	desp := title + ":" + content + "[登录](http://" + domain + "/main)"
-	url := serverJiangAPI + "?text=" + sendStr + "&desp=" + desp
-	//log.Println(url)
-	res := tools.Get(url)
-	return res
-}
 func SendVisitorLoginNotice(kefuName, visitorName, avator, content, visitorId string) {
 	if !tools.LimitFreqSingle("sendnotice:"+visitorId, 1, 120) {
 		log.Println("SendVisitorLoginNotice limit")
@@ -41,10 +27,13 @@ func SendVisitorLoginNotice(kefuName, visitorName, avator, content, visitorId st
 	str, _ := json.Marshal(msg)
 	ws.OneKefuMessage(kefuName, str)
 }
-func SendNoticeEmail(username, msg string) {
-	smtp := models.FindConfig("NoticeEmailSmtp")
-	email := models.FindConfig("NoticeEmailAddress")
-	password := models.FindConfig("NoticeEmailPassword")
+
+// SendNoticeEmail 用该客服自己配置的 SMTP 发送通知。
+// 之前读的是全局第一条匹配记录，多客服时会把 A 的通知发到 B 的邮箱。
+func SendNoticeEmail(kefuName, username, msg string) {
+	smtp := models.FindUserConfig(kefuName, "NoticeEmailSmtp")
+	email := models.FindUserConfig(kefuName, "NoticeEmailAddress")
+	password := models.FindUserConfig(kefuName, "NoticeEmailPassword")
 	if smtp == "" || email == "" || password == "" {
 		return
 	}

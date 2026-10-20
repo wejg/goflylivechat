@@ -3,7 +3,6 @@ package ws
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"goflylivechat/common"
 	"goflylivechat/models"
 	"log"
@@ -39,7 +38,7 @@ func NewVisitorServer(c *gin.Context) {
 	for {
 		//接受消息
 		var receive []byte
-		messageType, receive, err := conn.ReadMessage()
+		_, receive, err := conn.ReadMessage()
 		if err != nil {
 			if current, ok := ClientList.Get(user.Id); ok && current == user {
 				log.Println("删除用户", user.Id)
@@ -51,7 +50,7 @@ func NewVisitorServer(c *gin.Context) {
 		}
 
 		_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
-		if !enqueueMessage(&Message{conn: conn, content: receive, context: c, messageType: messageType}) {
+		if !enqueueMessage(&Message{user: user, content: receive}) {
 			_ = conn.Close()
 			if current, ok := ClientList.Get(user.Id); ok && current == user {
 				ClientList.Delete(user.Id)
@@ -65,15 +64,7 @@ func AddVisitorToList(user *User) {
 	//用户id对应的连接
 	oldUser, ok := ClientList.Get(user.Id)
 	if ok && oldUser != nil {
-		msg := TypeMessage{
-			Type: "close",
-			Data: user.Id,
-		}
-		str, _ := json.Marshal(msg)
-		oldUser.Mux.Lock()
-		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
-		oldUser.Mux.Unlock()
-		if err != nil {
+		if err := WriteJSON(oldUser, TypeMessage{Type: "close", Data: user.Id}); err != nil {
 			oldUser.Conn.Close()
 			user.UpdateTime = oldUser.LastUpdate()
 			ClientList.Delete(user.Id)
@@ -130,21 +121,18 @@ func VisitorOffline(kefuId string, visitorId string, visitorName string) {
 	OneKefuMessage(kefuId, str)
 }
 func VisitorNotice(visitorId string, notice string) {
-	msg := TypeMessage{
-		Type: "notice",
-		Data: notice,
-	}
-	str, _ := json.Marshal(msg)
 	visitor, ok := ClientList.Get(visitorId)
-	if !ok || visitor == nil || visitor.Conn == nil {
+	if !ok || visitor == nil {
 		return
 	}
-	visitor.Mux.Lock()
-	visitor.Conn.WriteMessage(websocket.TextMessage, str)
-	visitor.Mux.Unlock()
+	_ = WriteJSON(visitor, TypeMessage{Type: "notice", Data: notice})
 }
 func VisitorMessage(visitorId, content string, kefuInfo models.User) {
-	msg := TypeMessage{
+	visitor, ok := ClientList.Get(visitorId)
+	if !ok || visitor == nil {
+		return
+	}
+	_ = WriteJSON(visitor, TypeMessage{
 		Type: "message",
 		Data: ClientMessage{
 			Name:    kefuInfo.Nickname,
@@ -155,15 +143,7 @@ func VisitorMessage(visitorId, content string, kefuInfo models.User) {
 			Content: content,
 			IsKefu:  "no",
 		},
-	}
-	str, _ := json.Marshal(msg)
-	visitor, ok := ClientList.Get(visitorId)
-	if !ok || visitor == nil || visitor.Conn == nil {
-		return
-	}
-	visitor.Mux.Lock()
-	visitor.Conn.WriteMessage(websocket.TextMessage, str)
-	visitor.Mux.Unlock()
+	})
 }
 func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content string) {
 	kefu, ok := KefuList.Get(kefuInfo.Name)
@@ -187,28 +167,22 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 func CleanVisitorExpire() {
 	go func() {
 		log.Println("cleanVisitorExpire start...")
-		ticker := time.NewTicker(5 * time.Second)
+		// 超时阈值是 VisitorExpire（默认 600 秒），30 秒一次足够，
+		// 不必每 5 秒就 Snapshot 一次全量连接。
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
+			expired := make([]string, 0)
 			for _, user := range ClientList.Snapshot() {
 				if time.Since(user.LastUpdate()).Seconds() < common.VisitorExpire {
 					continue
 				}
-				msg := TypeMessage{Type: "auto_close", Data: user.Id}
-				str, _ := json.Marshal(msg)
-				user.Mux.Lock()
-				_ = user.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				err := user.Conn.WriteMessage(websocket.TextMessage, str)
-				user.Mux.Unlock()
-				if err != nil {
-					_ = user.Conn.Close()
-				} else {
-					models.UpdateVisitorStatus(user.Id, 0)
-					_ = user.Conn.Close()
-				}
+				_ = WriteJSON(user, TypeMessage{Type: "auto_close", Data: user.Id})
+				_ = user.Conn.Close()
 				ClientList.Delete(user.Id)
-				log.Println(user.Name + ":cleanVisitorExpire finished")
+				expired = append(expired, user.Id)
 			}
+			models.UpdateVisitorsOffline(expired)
 		}
 	}()
 }

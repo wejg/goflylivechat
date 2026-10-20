@@ -62,11 +62,26 @@ func FindConfigsByUserId(userid interface{}) []Config {
 	return config
 }
 
+// FindConfig 按 key 查全局配置，不区分 user_id。
+// 只适用于确实全局唯一的配置；凡是按客服区分的（邮件、推送），
+// 必须用 FindUserConfig，否则多客服时会拿到别人的配置。
 func FindConfig(key string) string {
 	configMu.RLock()
 	defer configMu.RUnlock()
 	for _, config := range CustomConfigs {
 		if key == config.ConfKey {
+			return config.ConfValue
+		}
+	}
+	return ""
+}
+
+// FindUserConfig 返回指定客服的配置值，缓存未命中时回落到全局值。
+func FindUserConfig(userId string, key string) string {
+	configMu.RLock()
+	defer configMu.RUnlock()
+	for _, config := range CustomConfigs {
+		if config.ConfKey == key && config.UserId == userId {
 			return config.ConfValue
 		}
 	}

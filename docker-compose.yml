@@ -22,6 +22,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: ["if [ ! -f \"$${GOFLY_INSTALL_LOCK}\" ]; then /app/gofly install; fi; exec /app/gofly server"]
     environment:
+      GIN_MODE: release
       GOFLY_DB_SERVER: db
       GOFLY_DB_PORT: "3306"
       GOFLY_DB_DATABASE: goflychat
@@ -31,6 +32,8 @@ services:
       GOFLY_SESSION_SECRET: ${GOFLY_SESSION_SECRET:-replace-with-a-long-random-secret}
       GOFLY_JWT_SECRET: ${GOFLY_JWT_SECRET:-replace-with-a-long-random-jwt-secret}
       GOFLY_ALLOWED_ORIGINS: ${GOFLY_ALLOWED_ORIGINS:-http://localhost:8081}
+      # 反代部署时填写代理地址，否则 ClientIP 拿到的是代理 IP，限流和黑名单会失效
+      GOFLY_TRUSTED_PROXIES: ${GOFLY_TRUSTED_PROXIES:-}
     ports:
       - "8081:8081"
     volumes:

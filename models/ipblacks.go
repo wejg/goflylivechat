@@ -32,10 +32,13 @@ func FindIpsByKefuId(id string) []Ipblack {
 	return ipblack
 }
 func FindIps(query interface{}, args []interface{}, page uint, pagesize uint) []Ipblack {
-	offset := (page - 1) * pagesize
-	if offset < 0 {
-		offset = 0
+	if page == 0 {
+		page = 1
 	}
+	if pagesize == 0 {
+		pagesize = 10
+	}
+	offset := (page - 1) * pagesize
 	var ipblacks []Ipblack
 	if query != nil {
 		DB.Where(query, args...).Offset(offset).Limit(pagesize).Find(&ipblacks)
@@ -49,9 +52,9 @@ func FindIps(query interface{}, args []interface{}, page uint, pagesize uint) []
 func CountIps(query interface{}, args []interface{}) uint {
 	var count uint
 	if query != nil {
-		DB.Model(&Visitor{}).Where(query, args...).Count(&count)
+		DB.Model(&Ipblack{}).Where(query, args...).Count(&count)
 	} else {
-		DB.Model(&Visitor{}).Count(&count)
+		DB.Model(&Ipblack{}).Count(&count)
 	}
 	return count
 }
