@@ -54,23 +54,26 @@ func NewKefuServer(c *gin.Context) {
 	}
 }
 func AddKefuToList(kefu *User) {
-	oldUser, ok := KefuList[kefu.Id]
-	if oldUser != nil || ok {
+	oldUser, ok := KefuList.Get(kefu.Id)
+	if ok && oldUser != nil {
 		msg := TypeMessage{
 			Type: "close",
 			Data: kefu.Id,
 		}
 		str, _ := json.Marshal(msg)
-		if err := oldUser.Conn.WriteMessage(websocket.TextMessage, str); err != nil {
+		oldUser.Mux.Lock()
+		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
+		oldUser.Mux.Unlock()
+		if err != nil {
 			oldUser.Conn.Close()
 		}
 	}
-	KefuList[kefu.Id] = kefu
+	KefuList.Set(kefu.Id, kefu)
 }
 
 // 给指定客服发消息
 func OneKefuMessage(toId string, str []byte) {
-	kefu, ok := KefuList[toId]
+	kefu, ok := KefuList.Get(toId)
 	if ok {
 		log.Println("OneKefuMessage lock")
 		kefu.Mux.Lock()
@@ -103,16 +106,16 @@ func SendPingToKefuClient() {
 		Type: "many pong",
 	}
 	str, _ := json.Marshal(msg)
-	for kefuId, kefu := range KefuList {
+	for _, kefu := range KefuList.Snapshot() {
 		if kefu == nil {
 			continue
 		}
 		kefu.Mux.Lock()
-		defer kefu.Mux.Unlock()
 		err := kefu.Conn.WriteMessage(websocket.TextMessage, str)
+		kefu.Mux.Unlock()
 		if err != nil {
 			log.Println("定时发送ping给客服，失败", err.Error())
-			delete(KefuList, kefuId)
+			KefuList.Delete(kefu.Id)
 		}
 	}
 }

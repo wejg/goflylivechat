@@ -5,6 +5,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
 )
 
 // SessionHandler 创建并返回会话中间件
@@ -16,7 +17,10 @@ func SessionHandler() gin.HandlerFunc {
 // SessionConfig 配置会话存储
 func SessionConfig() sessions.Store {
 	sessionMaxAge := 3600
-	sessionSecret := "GOFLY"
+	sessionSecret := os.Getenv("GOFLY_SESSION_SECRET")
+	if sessionSecret == "" {
+		sessionSecret = "GOFLY"
+	}
 
 	store := cookie.NewStore([]byte(sessionSecret))
 	store.Options(sessions.Options{

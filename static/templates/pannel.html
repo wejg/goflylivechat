@@ -51,23 +51,23 @@
         <div style="padding: 20px">
             <el-card class="deployment-guide">
                 <div slot="header" class="clearfix">
-                    <h2>Quick Start</h2>
+                    <h2>快速开始</h2>
                 </div>
 
                 <div class="deployment-section">
-                    <p>To immediately access your customer support chat interface</p>
-                    <p>Your live chat endpoint is available at:</p>
+                    <p>立即打开客服聊天页面</p>
+                    <p>聊天地址：</p>
                     <el-input v-model="chatEndpoint" readonly style="width: 100%; margin-top: 10px;">
                         <el-button slot="append" icon="el-icon-link"
                                    v-on:click="openChatWindow(chatEndpoint)"
-                                   title="Open chat in new window"></el-button>
+                                   title="在新窗口打开"></el-button>
                         <el-button slot="append" icon="el-icon-document-copy"
                                    v-on:click="copyText(chatEndpoint)"
-                                   title="Copy link"></el-button>
+                                   title="复制链接"></el-button>
                     </el-input>
                 </div>
                 <div class="deployment-section">
-                    <p>Add the following code (via copy/paste) at the bottom of the web page (immediately before the &lt;/body> tag).</p>
+                    <p>将以下代码复制到网站页面底部（&lt;/body> 标签之前）。</p>
                     <el-input style="width: 100%; margin-top: 10px;" type="textarea" v-model="deployCode"  :rows="20" readonly>
                     </el-input>
                 </div>

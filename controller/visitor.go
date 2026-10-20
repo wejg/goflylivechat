@@ -221,9 +221,9 @@ func GetVisitorMessage(c *gin.Context) {
 func GetVisitorOnlines(c *gin.Context) {
 	users := make([]map[string]string, 0)
 	visitorIds := make([]string, 0)
-	for uid, visitor := range ws.ClientList {
+	for _, visitor := range ws.ClientList.Snapshot() {
 		userInfo := make(map[string]string)
-		userInfo["uid"] = uid
+		userInfo["uid"] = visitor.Id
 		userInfo["name"] = visitor.Name
 		userInfo["avator"] = visitor.Avator
 		users = append(users, userInfo)
@@ -263,12 +263,12 @@ func GetKefusVisitorOnlines(c *gin.Context) {
 	kefuName, _ := c.Get("kefu_name")
 	users := make([]*VisitorOnline, 0)
 	visitorIds := make([]string, 0)
-	for uid, visitor := range ws.ClientList {
-		if visitor.To_id != kefuName {
+	for _, visitor := range ws.ClientList.Snapshot() {
+		if visitor.RouteTo() != kefuName {
 			continue
 		}
 		userInfo := new(VisitorOnline)
-		userInfo.Uid = uid
+		userInfo.Uid = visitor.Id
 		userInfo.Username = visitor.Name
 		userInfo.Avator = visitor.Avator
 		users = append(users, userInfo)

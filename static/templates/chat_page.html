@@ -1,10 +1,10 @@
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" name="viewport" />
-    <meta name="keywords" content="Golang Open Source LiveChat Software"/>
-    <meta name="description" content="Golang Open Source LiveChat Software"/>
-    <title>Live Chat Support</title>
+    <meta name="keywords" content="Golang 开源在线客服系统"/>
+    <meta name="description" content="Golang 开源在线客服系统"/>
+    <title>在线客服</title>
     <link rel="stylesheet" href="/static/cdn/element-ui/2.15.1/theme-chalk/index.min.css">
     <script src="/static/cdn/vue/2.6.11/vue.min.js"></script>
     <script src="/static/cdn/element-ui/2.15.1/index.js"></script>
@@ -25,14 +25,14 @@
                 <el-avatar class="chatEntTitleLogo" :size="35" :src="kefuInfo.avatar"></el-avatar>
             </el-badge>
             <div>
-                <div>Live Chat Support</div>
+                <div>在线客服</div>
             </div>
         </div>
         <div class="chatEntBox">
             <div class="chatContext chatVisitorPage">
                 <div class="chatBox">
                     <div class="chatNotice" v-on:click="getHistoryMessage" v-show="showLoadMore">
-                        <a href="javascript:;" class="chatNoticeContent" style="color: #07a9fe;">Load more messages</a>
+                        <a href="javascript:;" class="chatNoticeContent" style="color: #07a9fe;">加载更多消息</a>
                     </div>
                     <el-row :gutter="2" v-for="v in msgList" v-bind:class="{'chatBoxMe': v.is_kefu==false}">
                         <div class="chatTime" v-bind:class="{'chatTimeHide': v.show_time==false}"><span><{v.time}></span></div>
@@ -52,18 +52,18 @@
             </div>
             <div class="chatBoxSend">
                 <div class="visitorIconBox">
-                    <el-tooltip content="Send emoji" placement="top">
+                    <el-tooltip content="发送表情" placement="top">
                         <div class="iconBtn iconfont icon-xiaolian" style="margin-left:10px;font-size: 24px;cursor: pointer;" @click.stop="showFaceIcon==true?showFaceIcon=false:showFaceIcon=true"></div>
                     </el-tooltip>
 
-                    <el-tooltip content="Upload image" placement="top">
+                    <el-tooltip content="上传图片" placement="top">
                         <div class="iconBtn el-icon-picture" id="uploadImg" v-on:click="uploadImg('/uploadimg')" style="font-size: 24px;"></div>
                     </el-tooltip>
-                    <el-tooltip content="Upload file" placement="top">
+                    <el-tooltip content="上传文件" placement="top">
                         <div class="iconBtn el-icon-upload" id="uploadFile" v-on:click="uploadFile('/uploadfile')" style="font-size: 26px;"></div>
                     </el-tooltip>
 
-                    <div style="display: none" title="Emoji" class="icono-smile visitorIconBtns visitorFaceBtn"></div>
+                    <div style="display: none" title="表情" class="icono-smile visitorIconBtns visitorFaceBtn"></div>
 
                     <div class="clear"></div>
                 </div>
@@ -75,11 +75,11 @@
                 </div>
                 <el-input show-word-limit maxlength="100" :rows="2" type="textarea" resize="none" class="visitorEditorArea" @focus="scrollBottom;showIconBtns=false" @blur="scrollBottom;showIconBtns=false" v-model="messageContent" v-on:keyup.enter.native="chatToUser">
                 </el-input>
-                <el-button type="primary" size="mini" class="visitorEditorBtn" :disabled="sendDisabled||messageContent==''" v-on:click="chatToUser();showIconBtns=false">Send</el-button>
+                <el-button type="primary" size="mini" class="visitorEditorBtn" :disabled="sendDisabled||messageContent==''" v-on:click="chatToUser();showIconBtns=false">发送</el-button>
             </div>
         </div>
         <div class="chatArticle">
-            <h3 class="hotQuestionTitle">Announcements</h3>
+            <h3 class="hotQuestionTitle">公告</h3>
             <div class="allNotice" v-html><{kefuInfo.allNotice}></div>
         </div>
 
@@ -103,7 +103,7 @@
             msgList:[],
             msgListNum:[],
             messageContent:"",
-            chatTitle:"Connecting...",
+            chatTitle:"正在连接...",
             visitor:{},
             face:[],
             showKfonline:false,
@@ -193,21 +193,21 @@
                     this.alertSound();
                 }
                 if (redata.type == "close") {
-                    this.chatTitle="The conversation has ended";
+                    this.chatTitle="会话已结束";
                     $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
                     this.scrollBottom();
                     this.socket.close();
                     this.focusSendConn=true;
                 }
                 if (redata.type == "force_close") {
-                    this.chatTitle="The conversation was terminated by the agent";
+                    this.chatTitle="客服已结束会话";
                     $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
                     this.scrollBottom();
                     this.socket.close();
                     this.socketClosed=true;
                 }
                 if (redata.type == "auto_close") {
-                    this.chatTitle="The conversation timed out due to inactivity";
+                    this.chatTitle="因长时间无回应，会话已关闭";
                     $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
                     this.scrollBottom();
                     this.socket.close();
@@ -226,7 +226,7 @@
                 this.messageContent=messageContent;
                 if(this.socketClosed){
                     this.$message({
-                        message: 'Connection closed! Please refresh the page',
+                        message: '连接已关闭，请刷新页面',
                         type: 'warning'
                     });
                     return;

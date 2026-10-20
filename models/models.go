@@ -5,6 +5,8 @@ import (
 	"github.com/jinzhu/gorm"
 	"goflylivechat/common"
 	"log"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -31,7 +33,8 @@ func Connect() error {
 		return err
 	}
 	DB.SingularTable(true)
-	DB.LogMode(true)
+	debugSQL, _ := strconv.ParseBool(os.Getenv("GOFLY_DB_LOG"))
+	DB.LogMode(debugSQL)
 	DB.DB().SetMaxIdleConns(10)
 	DB.DB().SetMaxOpenConns(100)
 	DB.DB().SetConnMaxLifetime(59 * time.Second)

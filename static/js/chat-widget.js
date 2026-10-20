@@ -152,7 +152,7 @@ CHAT_WIDGET.openChatWindow = function() {
         container.id = this.containerId;
         container.innerHTML = `
             <div id="chat-widget-header">
-                <span>chat with us</span>
+                <span>在线客服</span>
                 <span class="close-button">×</span>
             </div>
             <iframe id="${this.iframeId}" src="${this.buildChatUrl()}"></iframe>
@@ -231,7 +231,7 @@ CHAT_WIDGET.handleIncomingMessage = function(data) {
 CHAT_WIDGET.notifyWithTitleFlash = function() {
     let isFlashing = true;
     const flashInterval = setInterval(() => {
-        document.title = isFlashing ? "New message!" : this.originalPageTitle;
+        document.title = isFlashing ? "新消息" : this.originalPageTitle;
         isFlashing = !isFlashing;
     }, 1000);
 

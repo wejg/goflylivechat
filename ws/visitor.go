@@ -44,12 +44,10 @@ func NewVisitorServer(c *gin.Context) {
 		var receive []byte
 		messageType, receive, err := conn.ReadMessage()
 		if err != nil {
-			for _, visitor := range ClientList {
-				if visitor.Conn == conn {
-					log.Println("删除用户", visitor.Id)
-					delete(ClientList, visitor.Id)
-					VisitorOffline(visitor.To_id, visitor.Id, visitor.Name)
-				}
+			if current, ok := ClientList.Get(user.Id); ok && current == user {
+				log.Println("删除用户", user.Id)
+				ClientList.Delete(user.Id)
+				VisitorOffline(user.RouteTo(), user.Id, user.Name)
 			}
 			log.Println(err)
 			return
@@ -65,20 +63,23 @@ func NewVisitorServer(c *gin.Context) {
 }
 func AddVisitorToList(user *User) {
 	//用户id对应的连接
-	oldUser, ok := ClientList[user.Id]
-	if oldUser != nil || ok {
+	oldUser, ok := ClientList.Get(user.Id)
+	if ok && oldUser != nil {
 		msg := TypeMessage{
 			Type: "close",
 			Data: user.Id,
 		}
 		str, _ := json.Marshal(msg)
-		if err := oldUser.Conn.WriteMessage(websocket.TextMessage, str); err != nil {
+		oldUser.Mux.Lock()
+		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
+		oldUser.Mux.Unlock()
+		if err != nil {
 			oldUser.Conn.Close()
-			user.UpdateTime = oldUser.UpdateTime
-			delete(ClientList, user.Id)
+			user.UpdateTime = oldUser.LastUpdate()
+			ClientList.Delete(user.Id)
 		}
 	}
-	ClientList[user.Id] = user
+	ClientList.Set(user.Id, user)
 	lastMessage := models.FindLastMessageByVisitorId(user.Id)
 	userInfo := make(map[string]string)
 	userInfo["uid"] = user.Id
@@ -95,7 +96,7 @@ func AddVisitorToList(user *User) {
 	str, _ := json.Marshal(msg)
 
 	//新版
-	OneKefuMessage(user.To_id, str)
+	OneKefuMessage(user.RouteTo(), str)
 }
 func VisitorOnline(kefuId string, visitor models.Visitor) {
 	lastMessage := models.FindLastMessageByVisitorId(visitor.VisitorId)
@@ -134,11 +135,13 @@ func VisitorNotice(visitorId string, notice string) {
 		Data: notice,
 	}
 	str, _ := json.Marshal(msg)
-	visitor, ok := ClientList[visitorId]
+	visitor, ok := ClientList.Get(visitorId)
 	if !ok || visitor == nil || visitor.Conn == nil {
 		return
 	}
+	visitor.Mux.Lock()
 	visitor.Conn.WriteMessage(websocket.TextMessage, str)
+	visitor.Mux.Unlock()
 }
 func VisitorMessage(visitorId, content string, kefuInfo models.User) {
 	msg := TypeMessage{
@@ -154,14 +157,16 @@ func VisitorMessage(visitorId, content string, kefuInfo models.User) {
 		},
 	}
 	str, _ := json.Marshal(msg)
-	visitor, ok := ClientList[visitorId]
+	visitor, ok := ClientList.Get(visitorId)
 	if !ok || visitor == nil || visitor.Conn == nil {
 		return
 	}
+	visitor.Mux.Lock()
 	visitor.Conn.WriteMessage(websocket.TextMessage, str)
+	visitor.Mux.Unlock()
 }
 func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content string) {
-	kefu, ok := KefuList[kefuInfo.Name]
+	kefu, ok := KefuList.Get(kefuInfo.Name)
 	reply := models.FindReplyItemByUserIdTitle(kefuInfo.Name, content)
 	if reply.Content != "" {
 		time.Sleep(1 * time.Second)
@@ -183,17 +188,20 @@ func CleanVisitorExpire() {
 	go func() {
 		log.Println("cleanVisitorExpire start...")
 		for {
-			for _, user := range ClientList {
-				diff := time.Now().Sub(user.UpdateTime).Seconds()
+			for _, user := range ClientList.Snapshot() {
+				diff := time.Since(user.LastUpdate()).Seconds()
 				if diff >= common.VisitorExpire {
 					msg := TypeMessage{
 						Type: "auto_close",
 						Data: user.Id,
 					}
 					str, _ := json.Marshal(msg)
-					if err := user.Conn.WriteMessage(websocket.TextMessage, str); err != nil {
+					user.Mux.Lock()
+					err := user.Conn.WriteMessage(websocket.TextMessage, str)
+					user.Mux.Unlock()
+					if err != nil {
 						user.Conn.Close()
-						delete(ClientList, user.Id)
+						ClientList.Delete(user.Id)
 					}
 					log.Println(user.Name + ":cleanVisitorExpire finshed")
 				}

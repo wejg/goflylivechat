@@ -57,7 +57,7 @@ func SendMessageV2(c *gin.Context) {
 	models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
 	//var msg TypeMessage
 	if cType == "kefu" {
-		guest, ok := ws.ClientList[vistorInfo.VisitorId]
+		guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
 
 		if guest != nil && ok {
 			ws.VisitorMessage(vistorInfo.VisitorId, content, kefuInfo)
@@ -83,9 +83,9 @@ func SendMessageV2(c *gin.Context) {
 		})
 	}
 	if cType == "visitor" {
-		guest, ok := ws.ClientList[vistorInfo.VisitorId]
+		guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
 		if ok && guest != nil {
-			guest.UpdateTime = time.Now()
+			guest.Touch()
 		}
 		//kefuConns, ok := ws.KefuList[kefuInfo.Name]
 		//if kefuConns == nil || !ok {
@@ -110,7 +110,7 @@ func SendMessageV2(c *gin.Context) {
 		str, _ := json.Marshal(msg)
 		ws.OneKefuMessage(kefuInfo.Name, str)
 		//ws.KefuMessage(vistorInfo.VisitorId, content, kefuInfo)
-		kefu, ok := ws.KefuList[kefuInfo.Name]
+		kefu, ok := ws.KefuList.Get(kefuInfo.Name)
 		if !ok || kefu == nil {
 			go SendNoticeEmail(content+"|"+vistorInfo.Name, content)
 		}
@@ -160,7 +160,7 @@ func SendKefuMessage(c *gin.Context) {
 	models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
 	//var msg TypeMessage
 
-	guest, ok := ws.ClientList[vistorInfo.VisitorId]
+	guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
 
 	if guest != nil && ok {
 		ws.VisitorMessage(vistorInfo.VisitorId, content, kefuInfo)
@@ -187,8 +187,10 @@ func SendVisitorNotice(c *gin.Context) {
 		Data: notice,
 	}
 	str, _ := json.Marshal(msg)
-	for _, visitor := range ws.ClientList {
+	for _, visitor := range ws.ClientList.Snapshot() {
+		visitor.Mux.Lock()
 		visitor.Conn.WriteMessage(websocket.TextMessage, str)
+		visitor.Mux.Unlock()
 	}
 	c.JSON(200, gin.H{
 		"code": 200,
@@ -205,16 +207,18 @@ func SendCloseMessageV2(c *gin.Context) {
 		return
 	}
 
-	oldUser, ok := ws.ClientList[visitorId]
-	if oldUser != nil || ok {
+	oldUser, ok := ws.ClientList.Get(visitorId)
+	if oldUser != nil && ok {
 		msg := ws.TypeMessage{
 			Type: "force_close",
 			Data: visitorId,
 		}
 		str, _ := json.Marshal(msg)
+		oldUser.Mux.Lock()
 		err := oldUser.Conn.WriteMessage(websocket.TextMessage, str)
+		oldUser.Mux.Unlock()
 		oldUser.Conn.Close()
-		delete(ws.ClientList, visitorId)
+		ws.ClientList.Delete(visitorId)
 		tools.Logger().Println("close_message", oldUser, err)
 	}
 	c.JSON(200, gin.H{

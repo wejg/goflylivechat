@@ -99,7 +99,7 @@ func install() (bool, error) {
 func GetStatistics(c *gin.Context) {
 	visitors := models.CountVisitors()
 	message := models.CountMessage(nil, nil)
-	session := len(ws.ClientList)
+	session := ws.ClientList.Len()
 	kefuNum := 0
 	c.JSON(200, gin.H{
 		"code": 200,

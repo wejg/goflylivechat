@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"goflylivechat/common"
+	"goflylivechat/internal/registry"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"log"
@@ -24,6 +26,33 @@ type User struct {
 	Mux        sync.Mutex
 	UpdateTime time.Time
 }
+
+func (u *User) Touch() {
+	u.Mux.Lock()
+	u.UpdateTime = time.Now()
+	u.Mux.Unlock()
+}
+
+func (u *User) LastUpdate() time.Time {
+	u.Mux.Lock()
+	updated := u.UpdateTime
+	u.Mux.Unlock()
+	return updated
+}
+
+func (u *User) RouteTo() string {
+	u.Mux.Lock()
+	toID := u.To_id
+	u.Mux.Unlock()
+	return toID
+}
+
+func (u *User) SetRouteTo(toID string) {
+	u.Mux.Lock()
+	u.To_id = toID
+	u.Mux.Unlock()
+}
+
 type Message struct {
 	conn        *websocket.Conn
 	context     *gin.Context
@@ -50,8 +79,8 @@ type ClientMessage struct {
 	IsKefu    string `json:"is_kefu"`
 }
 
-var ClientList = make(map[string]*User)
-var KefuList = make(map[string]*User)
+var ClientList = registry.New[*User]()
+var KefuList = registry.New[*User]()
 var message = make(chan *Message, 10)
 var upgrader = websocket.Upgrader{}
 var Mux sync.RWMutex
@@ -60,9 +89,8 @@ func init() {
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		// 解决跨域问题
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			return common.IsAllowedOrigin(r.Header.Get("Origin"))
 		},
 	}
 	go UpdateVisitorStatusCron()
@@ -93,7 +121,7 @@ func UpdateVisitorStatusCron() {
 			if visitor.VisitorId == "" {
 				continue
 			}
-			_, ok := ClientList[visitor.VisitorId]
+			_, ok := ClientList.Get(visitor.VisitorId)
 			if !ok {
 				models.UpdateVisitorStatus(visitor.VisitorId, 0)
 			}
@@ -124,8 +152,8 @@ func WsServerBackend() {
 			}
 			str, _ := json.Marshal(msg)
 			message.Mux.Lock()
-			defer message.Mux.Unlock()
 			conn.WriteMessage(websocket.TextMessage, str)
+			message.Mux.Unlock()
 		case "inputing":
 			data := typeMsg.Data.(map[string]interface{})
 			from := data["from"].(string)
@@ -139,8 +167,8 @@ func WsServerBackend() {
 	}
 }
 func UpdateVisitorUser(visitorId string, toId string) {
-	guest, ok := ClientList[visitorId]
+	guest, ok := ClientList.Get(visitorId)
 	if ok {
-		guest.To_id = toId
+		guest.SetRouteTo(toId)
 	}
 }

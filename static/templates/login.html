@@ -1,9 +1,9 @@
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta name="renderer" content="webkit">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>GoflyLiveChat - Open Source Live Chat</title>
+    <title>GoflyLiveChat - 在线客服系统</title>
     <link rel="stylesheet" href="/static/cdn/element-ui/2.15.1/theme-chalk/index.min.css">
     <script src="/static/cdn/vue/2.6.11/vue.min.js"></script>
     <script src="/static/cdn/element-ui/2.15.1/index.js"></script>
@@ -55,42 +55,42 @@
             <h1 class="loginTitle">GOFLY LIVE CHAT</h1>
             <el-form :model="form" :rules="rules" ref="loginForm" v-show="!showRegHtml">
                 <el-form-item prop="account">
-                    <el-input v-model="form.account" placeholder="Enter your username"></el-input>
+                    <el-input v-model="form.account" placeholder="请输入用户名"></el-input>
                 </el-form-item>
                 <el-form-item prop="password">
-                    <el-input show-password v-on:keyup.enter.native="handleLogin('loginForm')" v-model="form.password" placeholder="Enter your password"></el-input>
+                    <el-input show-password v-on:keyup.enter.native="handleLogin('loginForm')" v-model="form.password" placeholder="请输入密码"></el-input>
                 </el-form-item>
                 <el-form-item>
-                    <el-button style="width: 100%" type="primary" @click="handleLogin('loginForm')">Log In</el-button>
+                    <el-button style="width: 100%" type="primary" @click="handleLogin('loginForm')">登录</el-button>
                 </el-form-item>
                 <el-form-item>
-                    <el-button style="width: 100%" @click="showRegHtml=true">Create New Account</el-button>
+                    <el-button style="width: 100%" @click="showRegHtml=true">创建账号</el-button>
                 </el-form-item>
             </el-form>
 
             <el-form :model="form" :rules="rules" ref="registerForm" v-show="showRegHtml">
                 <el-form-item prop="account">
-                    <el-input v-model="form.account" placeholder="Choose a username"></el-input>
+                    <el-input v-model="form.account" placeholder="请输入用户名"></el-input>
                 </el-form-item>
                 <el-form-item prop="nickname">
-                    <el-input v-model="form.nickname" placeholder="Create a display name"></el-input>
+                    <el-input v-model="form.nickname" placeholder="请输入显示名称"></el-input>
                 </el-form-item>
                 <el-form-item prop="password">
-                    <el-input show-password v-model="form.password" placeholder="Create a password"></el-input>
+                    <el-input show-password v-model="form.password" placeholder="请输入密码"></el-input>
                 </el-form-item>
                 <el-form-item prop="rePassword">
-                    <el-input show-password v-on:keyup.enter.native="handleRegister('registerForm')" v-model="form.rePassword" placeholder="Confirm password"></el-input>
+                    <el-input show-password v-on:keyup.enter.native="handleRegister('registerForm')" v-model="form.rePassword" placeholder="请再次输入密码"></el-input>
                 </el-form-item>
                 <el-form-item>
-                    <el-button style="width: 100%" type="primary" @click="handleRegister('registerForm')">Sign Up</el-button>
+                    <el-button style="width: 100%" type="primary" @click="handleRegister('registerForm')">注册</el-button>
                 </el-form-item>
                 <el-form-item>
-                    <el-button style="width: 100%" @click="showRegHtml=false">Back to Login</el-button>
+                    <el-button style="width: 100%" @click="showRegHtml=false">返回登录</el-button>
                 </el-form-item>
             </el-form>
         </div>
 
-        <p class="copyright">GOFLY LIVE CHAT - Open Source Live Chat Platform</p>
+        <p class="copyright">GOFLY 在线客服平台</p>
     </template>
 </div>
 </body>
@@ -107,19 +107,19 @@
             },
             rules: {
                 account: [
-                    { required: true, message: 'Username is required', trigger: 'blur' },
-                    { min: 2, max: 20, message: 'Username must be 2-20 characters', trigger: 'blur' }
+                    { required: true, message: '请输入用户名', trigger: 'blur' },
+                    { min: 2, max: 20, message: '用户名长度为 2-20 个字符', trigger: 'blur' }
                 ],
                 nickname: [
-                    { required: true, message: 'DisplayName is required', trigger: 'blur' },
-                    { min: 1, max: 60, message: 'DisplayName must be 1-60 characters', trigger: 'blur' }
+                    { required: true, message: '请输入显示名称', trigger: 'blur' },
+                    { min: 1, max: 60, message: '显示名称长度为 1-60 个字符', trigger: 'blur' }
                 ],
                 password: [
-                    { required: true, message: 'Password is required', trigger: 'blur' },
-                    { min: 2, message: 'Password must be at least 2 characters', trigger: 'blur' }
+                    { required: true, message: '请输入密码', trigger: 'blur' },
+                    { min: 2, message: '密码至少需要 2 个字符', trigger: 'blur' }
                 ],
                 rePassword: [
-                    { required: true, message: 'Please confirm your password', trigger: 'blur' },
+                    { required: true, message: '请确认密码', trigger: 'blur' },
                     { validator: this.validatePasswordMatch, trigger: 'blur' }
                 ]
             },
@@ -128,7 +128,7 @@
         methods: {
             validatePasswordMatch(rule, value, callback) {
                 if (value !== this.form.password) {
-                    callback(new Error('Passwords don\'t match'));
+                    callback(new Error('两次输入的密码不一致'));
                 } else {
                     callback();
                 }
@@ -159,20 +159,20 @@
                 $.post("/check", data, (response) => {
                     if (response.code === 200) {
                         this.$message({
-                            message: 'Welcome back!',
+                            message: '登录成功',
                             type: 'success'
                         });
                         localStorage.setItem("token", response.result.token);
                         window.location.href = "/main";
                     } else {
                         this.$message({
-                            message: response.message || 'Invalid credentials',
+                            message: response.message || '用户名或密码错误',
                             type: 'error'
                         });
                     }
                 }).fail(() => {
                     this.$message({
-                        message: 'Connection error',
+                        message: '连接失败，请稍后重试',
                         type: 'error'
                     });
                 });
@@ -181,7 +181,7 @@
             register() {
                 if (this.form.password !== this.form.rePassword) {
                     this.$message({
-                        message: 'Passwords don\'t match',
+                        message: '两次输入的密码不一致',
                         type: 'error'
                     });
                     return;
@@ -196,19 +196,19 @@
                 $.post("/register", data, (response) => {
                     if (response.code === 200) {
                         this.$message({
-                            message: 'Account created successfully!',
+                            message: '账号创建成功',
                             type: 'success'
                         });
                         this.showRegHtml = false;
                     } else {
                         this.$message({
-                            message: response.msg || 'Registration failed',
+                            message: response.msg || '注册失败',
                             type: 'error'
                         });
                     }
                 }).fail(() => {
                     this.$message({
-                        message: 'Connection error',
+                        message: '连接失败，请稍后重试',
                         type: 'error'
                     });
                 });

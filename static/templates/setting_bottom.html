@@ -31,37 +31,37 @@
             chatEndpoint: "",
             configList:[
                     {
-                        "conf_name": "Announcement",
+                        "conf_name": "公告",
                         "conf_key": "AllNotice",
                         "conf_value":"",
                     },
                     {
 
-                        "conf_name": "Offline Message",
+                        "conf_name": "离线消息",
                         "conf_key": "OfflineMessage",
                         "conf_value":"",
                     },
                     {
 
-                        "conf_name": "Welcome Message",
+                        "conf_name": "欢迎语",
                         "conf_key": "WelcomeMessage",
                         "conf_value":"",
                     },
                     {
 
-                        "conf_name": "Email Address (SMTP)",
+                        "conf_name": "SMTP 服务器",
                         "conf_key": "NoticeEmailSmtp",
                         "conf_value":"",
                     },
                     {
 
-                        "conf_name": "Email Account",
+                        "conf_name": "邮箱账号",
                         "conf_key": "NoticeEmailAddress",
                         "conf_value":"",
                     },
                     {
 
-                        "conf_name": "Email Password (SMTP)",
+                        "conf_name": "邮箱密码（SMTP）",
                         "conf_key": "NoticeEmailPassword",
                         "conf_value":"",
                     }
@@ -122,7 +122,7 @@
                 this.sendAjax("/config","POST",{key:key,value:value},function(result){
                     _this.getConfigList();
                     _this.$message({
-                        message: "success！",
+                        message: "保存成功！",
                         type: 'success'
                     });
                 });
@@ -138,7 +138,7 @@
                     password:_this.kefuInfo.password,
                 },function(result){
                     _this.$message({
-                        message: "success",
+                        message: "保存成功",
                         type: 'success'
                     });
                 });
@@ -173,7 +173,7 @@
             copyText(text){
                 copyText(text);
                 this.$message({
-                    message: "success",
+                    message: "复制成功",
                     type: 'success'
                 });
             },

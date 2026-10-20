@@ -1,0 +1,43 @@
+services:
+  db:
+    image: m.daocloud.io/docker.io/library/mariadb:10.11
+    environment:
+      MARIADB_DATABASE: goflychat
+      MARIADB_USER: goflychat
+      MARIADB_PASSWORD: ${GOFLY_DB_PASSWORD:-change-me}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-change-root-me}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$${MARIADB_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["if [ ! -f \"$${GOFLY_INSTALL_LOCK}\" ]; then /app/gofly install; fi; exec /app/gofly server"]
+    environment:
+      GOFLY_DB_SERVER: db
+      GOFLY_DB_PORT: "3306"
+      GOFLY_DB_DATABASE: goflychat
+      GOFLY_DB_USERNAME: goflychat
+      GOFLY_DB_PASSWORD: ${GOFLY_DB_PASSWORD:-change-me}
+      GOFLY_INSTALL_LOCK: /data/install.lock
+      GOFLY_SESSION_SECRET: ${GOFLY_SESSION_SECRET:-replace-with-a-long-random-secret}
+      GOFLY_ALLOWED_ORIGINS: ${GOFLY_ALLOWED_ORIGINS:-http://localhost:8081}
+    ports:
+      - "8081:8081"
+    volumes:
+      - app_data:/data
+      - uploads:/app/static/upload
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  app_data:
+  uploads:

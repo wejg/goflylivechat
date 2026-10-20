@@ -1,0 +1,11 @@
+.git
+.idea
+.env
+config/mysql.json
+install.lock
+logs
+static/upload/*
+tmp
+*.log
+*.test
+gofly

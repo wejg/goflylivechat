@@ -80,6 +80,21 @@ cd goflylivechat
 Once running, the service listens on port 8081. Access via http://[your-ip]:8081.
 
 For domain access, configure a reverse proxy to port 8081 to hide the port number.
+
+### Docker deployment
+
+Copy `.env.example` to `.env`, replace the passwords and session secret, then run:
+
+```bash
+docker compose up -d --build
+```
+
+The first startup imports `import.sql` automatically. Open `http://localhost:8081` after the app container is healthy. Set `GOFLY_ALLOWED_ORIGINS` to the exact website origins that embed the chat widget, separated by commas.
+
+The database, installation lock, and uploaded files are stored in named Docker volumes. To reset the demo database and files, run `docker compose down -v`.
+
+The Dockerfile uses DaoCloud's domestic Docker Hub mirror, Aliyun's Alpine mirror, and `goproxy.cn` for Go dependencies. If a mirror is temporarily unavailable, replace the `m.daocloud.io` prefix with another reachable domestic mirror.
+
 ### Customer Service Integration
 Chat Link
 

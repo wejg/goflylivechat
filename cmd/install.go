@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,9 +20,10 @@ var installCmd = &cobra.Command{
 }
 
 func install() {
+	lockPath := common.InstallLockPath()
 	// Check if already installed
-	if ok, _ := tools.IsFileNotExist("./install.lock"); !ok {
-		log.Println("Please remove ./install.lock file to reinstall")
+	if ok, _ := tools.IsFileNotExist(lockPath); !ok {
+		log.Printf("Please remove %s to reinstall\n", lockPath)
 		os.Exit(1)
 	}
 
@@ -28,7 +31,7 @@ func install() {
 	sqlFile := "import.sql"
 	dataExists, _ := tools.IsFileExist(sqlFile)
 	if !dataExists {
-		log.Println("Configuration file config/mysql.json or database import file import.sql not found")
+		log.Println("Database import file import.sql not found")
 		os.Exit(1)
 	}
 
@@ -54,7 +57,11 @@ func install() {
 	}
 
 	// Create installation lock file
-	installFile, err := os.OpenFile("./install.lock", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0755); err != nil {
+		log.Printf("Failed to create lock directory: %v\n", err)
+		os.Exit(1)
+	}
+	installFile, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		log.Printf("Failed to create lock file: %v\n", err)
 		os.Exit(1)
