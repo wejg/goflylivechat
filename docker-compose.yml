@@ -6,6 +6,8 @@ services:
       MARIADB_USER: goflychat
       MARIADB_PASSWORD: ${GOFLY_DB_PASSWORD:-change-me}
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-change-root-me}
+    ports:
+      - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:

@@ -130,9 +130,9 @@
             initConn:function() {
                 let socket = new ReconnectingWebSocket(this.server+"?visitor_id="+encodeURIComponent(this.visitor.visitor_id));
                 this.socket = socket
-                this.socket.onmessage = this.OnMessage;
-                this.socket.onopen = this.OnOpen;
-                this.socket.onclose = this.OnClose;
+                this.socket.onmessage = (event) => this.OnMessage(event);
+                this.socket.onopen = () => this.OnOpen();
+                this.socket.onclose = () => this.OnClose();
                 this.ping();
             },
             OnOpen:function() {

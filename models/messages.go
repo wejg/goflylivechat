@@ -27,7 +27,7 @@ type MessageKefu struct {
 	CreateTime    string `json:"create_time"`
 }
 
-func CreateMessage(kefu_id string, visitor_id string, content string, mes_type string) {
+func CreateMessage(kefu_id string, visitor_id string, content string, mes_type string) (uint, error) {
 	v := &Message{
 		KefuId:    kefu_id,
 		VisitorId: visitor_id,
@@ -36,7 +36,8 @@ func CreateMessage(kefu_id string, visitor_id string, content string, mes_type s
 		Status:    "unread",
 	}
 	v.UpdatedAt = time.Now()
-	DB.Create(v)
+	err := DB.Create(v).Error
+	return v.ID, err
 }
 func FindMessageByVisitorId(visitor_id string) []Message {
 	var messages []Message
@@ -44,19 +45,32 @@ func FindMessageByVisitorId(visitor_id string) []Message {
 	return messages
 }
 
-// 修改消息状态
-func ReadMessageByVisitorId(visitor_id string) {
-	message := &Message{
-		Status: "read",
-	}
-	DB.Model(&message).Where("visitor_id=?", visitor_id).Update(message)
+// ReadMessageByVisitorId 只确认到已展示的消息ID，保留更晚到达的消息。
+func ReadMessageByVisitorId(visitorID, mesType string, lastMessageID uint) error {
+	return DB.Model(&Message{}).
+		Where("visitor_id=? AND mes_type=? AND status=? AND id<=?", visitorID, mesType, "unread", lastMessageID).
+		Update("status", "read").Error
 }
 
-// 获取未读数
-func FindUnreadMessageNumByVisitorId(visitor_id string) uint {
+func FindUnreadMessageNumByVisitorId(visitorID, mesType string) (uint, error) {
 	var count uint
-	DB.Model(&Message{}).Where("visitor_id=? and status=?", visitor_id, "unread").Count(&count)
-	return count
+	err := DB.Model(&Message{}).Where("visitor_id=? AND mes_type=? AND status=?", visitorID, mesType, "unread").Count(&count).Error
+	return count, err
+}
+
+type VisitorUnread struct {
+	VisitorId string
+	Unread    uint
+}
+
+func FindKefuUnreadMessages(kefuName string) ([]VisitorUnread, error) {
+	var counts []VisitorUnread
+	err := DB.Table("message").
+		Select("message.visitor_id, COUNT(*) AS unread").
+		Joins("JOIN visitor ON visitor.visitor_id = message.visitor_id").
+		Where("visitor.to_id=? AND visitor.deleted_at IS NULL AND message.deleted_at IS NULL AND message.mes_type=? AND message.status=?", kefuName, "visitor", "unread").
+		Group("message.visitor_id").Scan(&counts).Error
+	return counts, err
 }
 
 // 查询最后一条消息

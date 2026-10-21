@@ -61,6 +61,7 @@ type TypeMessage struct {
 	Data interface{} `json:"data"`
 }
 type ClientMessage struct {
+	MessageId uint   `json:"message_id,omitempty"`
 	Name      string `json:"name"`
 	Avator    string `json:"avator"`
 	Id        string `json:"id"`
@@ -104,6 +105,12 @@ func WriteJSON(u *User, msg TypeMessage) error {
 		return err
 	}
 	return WriteTo(u, str)
+}
+
+// IsKefuOnline reports whether the客服 currently has a live WebSocket connection.
+func IsKefuOnline(name string) bool {
+	u, ok := KefuList.Get(name)
+	return ok && u != nil && u.Conn != nil
 }
 
 var upgrader = websocket.Upgrader{}

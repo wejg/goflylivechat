@@ -57,7 +57,11 @@ func SendMessageV2(c *gin.Context) {
 		return
 	}
 
-	models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
+	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "消息保存失败，请重试"})
+		return
+	}
 	//var msg TypeMessage
 	if cType == "visitor" {
 		guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
@@ -75,13 +79,14 @@ func SendMessageV2(c *gin.Context) {
 		msg := ws.TypeMessage{
 			Type: "message",
 			Data: ws.ClientMessage{
-				Avator:  vistorInfo.Avator,
-				Id:      vistorInfo.VisitorId,
-				Name:    vistorInfo.Name,
-				ToId:    kefuInfo.Name,
-				Content: content,
-				Time:    time.Now().Format("2006-01-02 15:04:05"),
-				IsKefu:  "no",
+				MessageId: messageID,
+				Avator:    vistorInfo.Avator,
+				Id:        vistorInfo.VisitorId,
+				Name:      vistorInfo.Name,
+				ToId:      kefuInfo.Name,
+				Content:   content,
+				Time:      time.Now().Format("2006-01-02 15:04:05"),
+				IsKefu:    "no",
 			},
 		}
 		str, _ := json.Marshal(msg)
@@ -105,7 +110,6 @@ func SendKefuMessage(c *gin.Context) {
 	fromId, _ := c.Get("kefu_name")
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
-	cType := c.PostForm("type")
 	if content == "" || len([]rune(content)) > 2048 {
 		c.JSON(200, gin.H{
 			"code": 400,
@@ -134,7 +138,10 @@ func SendKefuMessage(c *gin.Context) {
 		return
 	}
 
-	models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
+	if _, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, "kefu"); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "消息保存失败，请重试"})
+		return
+	}
 	//var msg TypeMessage
 
 	guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)

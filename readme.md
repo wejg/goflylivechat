@@ -91,9 +91,17 @@ docker compose up -d --build
 
 The first startup imports `import.sql` automatically. Open `http://localhost:8081` after the app container is healthy. Set `GOFLY_ALLOWED_ORIGINS` to the exact website origins that embed the chat widget, separated by commas. Set `GOFLY_SESSION_SECRET` and `GOFLY_JWT_SECRET` to long random values in production.
 
+MariaDB is also available on host port `3306` for external database clients. Connect to the Docker host IP with database `goflychat`, user `goflychat`, and the password from `GOFLY_DB_PASSWORD` in `.env`. Public internet access also requires TCP port `3306` to be reachable through the host firewall and any upstream router or cloud security group. Use a strong database password before allowing public access.
+
 The database, installation lock, and uploaded files are stored in named Docker volumes. To reset the demo database and files, run `docker compose down -v`.
 
 The Dockerfile uses DaoCloud's domestic Docker Hub mirror, Aliyun's Alpine mirror, and `goproxy.cn` for Go dependencies. If a mirror is temporarily unavailable, replace the `m.daocloud.io` prefix with another reachable domestic mirror.
+
+### Unread messages
+
+The online and recent visitor lists show unread incoming message counts; the Chat menu shows their total, including offline visitors. Counts are stored in the database and restored after refreshing or signing in again. Opening a conversation marks incoming messages through its newest displayed message ID as read. Messages received while the chat is hidden stay unread. Existing messages whose database status is still `unread` are included in the initial counts.
+
+With a customer service token, `GET /message_unread` returns `result.counts` keyed by visitor ID and `result.total`. `GET /message_status?visitor_id=...` returns the authenticated recipient's incoming unread count. `POST /message_status` requires `visitor_id` and a positive `last_message_id`; it marks only incoming messages through that ID as read. Both message-status endpoints also accept the visitor's own token, with the direction reversed, and enforce conversation ownership.
 
 ### Customer Service Integration
 Chat Link

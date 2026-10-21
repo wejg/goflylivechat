@@ -34,6 +34,7 @@ func InitApiRouter(engine *gin.Engine) {
 	engine.POST("/uploadfile", middleware.Ipblack, controller.UploadFile)
 	//获取未读消息数
 	engine.GET("/message_status", middleware.VisitorScope, controller.GetVisitorMessageStatus)
+	engine.GET("/message_unread", middleware.JwtApiMiddleware, controller.GetKefuUnreadMessages)
 	//设置消息已读
 	engine.POST("/message_status", middleware.VisitorScope, controller.MarkVisitorMessageRead)
 

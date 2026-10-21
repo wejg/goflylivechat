@@ -227,13 +227,12 @@ func GetVisitorMessageStatus(c *gin.Context) {
 		c.JSON(200, gin.H{"code": 403, "msg": "无权访问该会话"})
 		return
 	}
-	c.JSON(200, gin.H{
-		"code": 200,
-		"msg":  "ok",
-		"result": gin.H{
-			"unread": models.FindUnreadMessageNumByVisitorId(visitorID),
-		},
-	})
+	unread, err := models.FindUnreadMessageNumByVisitorId(visitorID, incomingMessageType(c))
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "获取未读消息失败"})
+		return
+	}
+	c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"unread": unread}})
 }
 
 func MarkVisitorMessageRead(c *gin.Context) {
@@ -252,8 +251,38 @@ func MarkVisitorMessageRead(c *gin.Context) {
 		c.JSON(200, gin.H{"code": 403, "msg": "无权访问该会话"})
 		return
 	}
-	models.ReadMessageByVisitorId(visitorID)
+	lastID, err := strconv.ParseUint(c.PostForm("last_message_id"), 10, 32)
+	if err != nil || lastID == 0 {
+		c.JSON(200, gin.H{"code": 400, "msg": "last_message_id必须是已展示的消息ID"})
+		return
+	}
+	if err := models.ReadMessageByVisitorId(visitorID, incomingMessageType(c), uint(lastID)); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "更新已读消息失败"})
+		return
+	}
 	c.JSON(200, gin.H{"code": 200, "msg": "ok"})
+}
+
+func incomingMessageType(c *gin.Context) string {
+	if _, visitor := c.Get("visitor_id"); visitor {
+		return "kefu"
+	}
+	return "visitor"
+}
+
+func GetKefuUnreadMessages(c *gin.Context) {
+	rows, err := models.FindKefuUnreadMessages(c.GetString("kefu_name"))
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "获取未读消息失败"})
+		return
+	}
+	counts := make(map[string]uint, len(rows))
+	var total uint
+	for _, row := range rows {
+		counts[row.VisitorId] = row.Unread
+		total += row.Unread
+	}
+	c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"counts": counts, "total": total}})
 }
 
 // @Summary 获取客服的在线访客列表接口

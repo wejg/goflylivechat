@@ -20,6 +20,11 @@ type migration struct {
 func migrations() []migration {
 	return []migration{
 		{
+			name:    "message 增加未读查询索引",
+			applied: func() bool { return hasIndex("message", "idx_visitor_unread") },
+			stmt:    "ALTER TABLE `message` ADD INDEX `idx_visitor_unread` (`visitor_id`,`mes_type`,`status`,`id`)",
+		},
+		{
 			name:    "message 增加 (visitor_id,id) 联合索引",
 			applied: func() bool { return hasIndex("message", "idx_visitor_id_id") },
 			stmt:    "ALTER TABLE `message` ADD INDEX `idx_visitor_id_id` (`visitor_id`,`id`)",

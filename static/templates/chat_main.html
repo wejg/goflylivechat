@@ -42,7 +42,7 @@
                             <el-row v-for="item in users" :key="item.uid" class="">
                                 <div :title="item.last_message" style="cursor:pointer" class="onlineUsers hasLastMsg" v-bind:class="{'cur': item.uid==currentGuest }" v-on:click="talkTo(item.uid,item.username)">
                                     <el-col :span="4">
-                                        <el-badge value="new" :hidden="item.hidden_new_message" class="item">
+                                        <el-badge :value="unreadVisitors[item.uid] || 0" :hidden="!unreadVisitors[item.uid]" class="item">
                                             <el-avatar :size="40" :src="item.avator"></el-avatar>
                                         </el-badge>
                                     </el-col>
@@ -54,10 +54,12 @@
                             </el-row>
                         </el-tab-pane>
                         <el-tab-pane label="最近访客" name="second">
-                            <el-row v-for="item in visitors" :key="item.uid" class="">
+                            <el-row v-for="item in visitors" :key="item.visitor_id" class="">
                                 <div style="cursor:pointer" class="onlineUsers" v-bind:class="{'cur': item.visitor_id==currentGuest }" v-on:click="talkTo(item.visitor_id,item.name)">
                                     <el-col :span="4">
-                                        <el-avatar  :size="40" :src="item.avator"></el-avatar>
+                                        <el-badge :value="unreadVisitors[item.visitor_id] || 0" :hidden="!unreadVisitors[item.visitor_id]" class="item">
+                                            <el-avatar :size="40" :src="item.avator"></el-avatar>
+                                        </el-badge>
                                     </el-col>
                                     <el-col style="height:40px;overflow: hidden" :span="16">
                                         <div style="height:20px;overflow: hidden"><{item.name}></div>
@@ -321,6 +323,8 @@
             leftTabActive:"first",
             rightTabActive:"visitorInfo",
             users:[],
+            unreadVisitors:{},
+            unreadRequest:0,
             usersMap:[],
             server:getWsBaseUrl()+"/ws_kefu?token="+localStorage.getItem("token"),
             //server:getWsBaseUrl()+"/chat_server",
@@ -404,6 +408,7 @@
                     if(_this.socket && _this.socket.readyState === WebSocket.OPEN){
                         _this.socket.send(JSON.stringify(mes));
                     }
+                    _this.getUnreadMessages();
                 },20000);
                 this.onlineTimer=setInterval(function(){
                     _this.getOnlineVisitors();
@@ -413,11 +418,12 @@
             initConn() {
                 let socket = new ReconnectingWebSocket(this.server);//创建Socket实例
                 this.socket = socket
-                this.socket.onmessage = this.OnMessage;
-                this.socket.onopen = this.OnOpen;
+                this.socket.onmessage = (event) => this.OnMessage(event);
+                this.socket.onopen = () => this.OnOpen();
             },
             OnOpen() {
                 this.sendKefuOnline();
+                this.getUnreadMessages();
             },
             OnMessage(e) {
                 const redata = JSON.parse(e.data);
@@ -472,6 +478,7 @@
                     content.content = replaceContent(msg.content);
                     content.is_kefu = msg.is_kefu=="yes"? true:false;
                     content.time = msg.time;
+                    content.id = msg.message_id;
                     if (msg.id == this.currentGuest) {
                         this.msgList.push(content);
                         this.trimMessages();
@@ -480,9 +487,13 @@
                     for(let i=0;i<this.users.length;i++){
                         if(this.users[i].uid==msg.id){
                             this.$set(this.users[i],'last_message',msg.content);
-                            if(this.visitor.visitor_id!=msg.id){
-                                this.$set(this.users[i],'hidden_new_message',false);
-                            }
+                        }
+                    }
+                    if(!content.is_kefu){
+                        if(this.currentGuest==msg.id && this.chatIsVisible()){
+                            this.markMessagesRead(msg.id,msg.message_id);
+                        }else{
+                            this.getUnreadMessages();
                         }
                     }
                     this.scrollBottom();
@@ -516,11 +527,6 @@
                 this.msgList=[];
                 this.getHistoryMessage();
                 //this.getMesssagesByVisitorId(guestId);
-                for(var i=0;i<this.users.length;i++){
-                    if(this.users[i].uid==guestId){
-                        this.$set(this.users[i],'hidden_new_message',true);
-                    }
-                }
             },
             //发送给客户
             chatToUser() {
@@ -570,7 +576,6 @@
                 retData.last_message=retData.last_message;
                 retData.status=1;
                 retData.name=retData.username;
-                retData.hidden_new_message=true;
                 for(let i=0;i<this.users.length;i++){
                     if(this.users[i].uid==retData.uid){
                         flag=true;
@@ -679,9 +684,6 @@
                     success: function(data) {
                         if(data.code==200 && data.result!=null){
                             _this.users=data.result;
-                            for(var i=0;i<_this.users.length;i++){
-                                _this.$set(_this.users[i],'hidden_new_message',true);
-                            }
                         }
                         if(data.code!=200){
                             _this.$message({
@@ -695,11 +697,57 @@
                     }
                 });
             },
+            getUnreadMessages(){
+                const request=++this.unreadRequest;
+                $.ajax({
+                    type:"get",
+                    url:"/message_unread",
+                    headers:{"token":localStorage.getItem("token")},
+                    success:(res)=>{
+                        if(request!=this.unreadRequest || res.code!=200){ return; }
+                        this.unreadVisitors=res.result.counts;
+                        window.parent.postMessage({type:"unread_count",count:res.result.total},window.location.origin);
+                    }
+                });
+            },
+            chatIsVisible(){
+                return !document.hidden && (!window.frameElement || window.frameElement.style.display!="none");
+            },
+            markMessagesRead(visitorId,lastMessageId){
+                if(!lastMessageId || visitorId!=this.currentGuest || !this.chatIsVisible()){ return; }
+                $.ajax({
+                    type:"post",
+                    url:"/message_status",
+                    data:{visitor_id:visitorId,last_message_id:lastMessageId},
+                    headers:{"token":localStorage.getItem("token")},
+                    success:(res)=>{
+                        if(res.code!=200){
+                            this.$message({message:res.msg,type:'error'});
+                            return;
+                        }
+                        this.getUnreadMessages();
+                    },
+                    error:()=>{ this.$message({message:"更新已读消息失败，请重试",type:'error'}); }
+                });
+            },
+            readCurrentMessages(){
+                let lastMessageId=0;
+                for(const message of this.msgList){
+                    lastMessageId=Math.max(lastMessageId,message.id || 0);
+                }
+                this.markMessagesRead(this.currentGuest,lastMessageId);
+            },
+            handleParentMessage(event){
+                if(event.source===window.parent && event.origin===window.location.origin && event.data && event.data.type=="chat_visible"){
+                    this.readCurrentMessages();
+                }
+            },
             getHistoryMessage(){
+                const visitorId=this.currentGuest;
                 let params={
                     page:this.messages.page,
                     pagesize: this.messages.pagesize,
-                    visitor_id: this.currentGuest,
+                    visitor_id: visitorId,
                 }
                 let _this=this;
                 $.ajax({
@@ -708,7 +756,7 @@
                     data:params,
                     headers:{"token":localStorage.getItem("token")},
                     success:function(res){
-                    if(res.code!=200){
+                    if(res.code!=200 || _this.currentGuest!=visitorId){
                         return;
                     }
                     let msgList=res.result.list;
@@ -734,6 +782,7 @@
                         _this.msgList.unshift(item);
                     }
                     _this.trimMessages();
+                    _this.readCurrentMessages();
                     if(_this.messages.page==1){
                         _this.scrollBottom();
                     }
@@ -1218,9 +1267,14 @@
             },
         },
         mounted() {
-            document.addEventListener('paste', this.onPasteUpload)
+            document.addEventListener('paste', this.onPasteUpload);
+            document.addEventListener('visibilitychange',this.readCurrentMessages);
+            window.addEventListener('message',this.handleParentMessage);
         },
         beforeDestroy(){
+            document.removeEventListener('paste',this.onPasteUpload);
+            document.removeEventListener('visibilitychange',this.readCurrentMessages);
+            window.removeEventListener('message',this.handleParentMessage);
             if(this.pingTimer){ clearInterval(this.pingTimer); }
             if(this.onlineTimer){ clearInterval(this.onlineTimer); }
             if(this.socket){ this.socket.close(); }
@@ -1230,6 +1284,7 @@
             this.initJquery();
             this.getKefuInfo();
             this.getOnlineVisitors();
+            this.getUnreadMessages();
             this.getReplys();
             this.getIpblacks();
             this.selectText();

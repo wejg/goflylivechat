@@ -86,8 +86,11 @@ func GetKefuInfo(c *gin.Context) {
 	info := make(map[string]interface{})
 	info["avator"] = user.Avator
 	info["username"] = user.Name
+	info["name"] = user.Name
 	info["nickname"] = user.Nickname
 	info["uid"] = user.ID
+	info["id"] = user.Name
+	info["online"] = ws.IsKefuOnline(user.Name)
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",
@@ -119,8 +122,7 @@ func GetOtherKefuList(c *gin.Context) {
 		item["nickname"] = kefu.Nickname
 		item["avator"] = kefu.Avator
 		item["status"] = "offline"
-		kefu, ok := ws.KefuList.Get(kefu.Name)
-		if ok && kefu != nil {
+		if ws.IsKefuOnline(kefu.Name) {
 			item["status"] = "online"
 		}
 		result = append(result, item)

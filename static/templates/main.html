@@ -9,7 +9,7 @@
     <script src="/static/cdn/jquery/3.6.0/jquery.min.js"></script>
 
     <link rel="stylesheet" href="/static/css/common.css">
-    <script src="/assets/js/functions.js"></script>
+    <script src="/static/js/functions.js"></script>
     <style>
         html,
         body {
@@ -60,8 +60,8 @@
                 <span slot="title">首页</span>
             </div>
 
-            <div class="menuLeftItem" v-on:click="haveNewMessage='';openIframeUrl('/chat_main')">
-                <el-badge :value="haveNewMessage" class="item">
+            <div class="menuLeftItem" v-on:click="openIframeUrl('/chat_main')">
+                <el-badge :value="haveNewMessage" :hidden="!haveNewMessage" class="item">
                     <i class="el-icon-chat-dot-round"></i>
                 </el-badge>
                 <span slot="title">聊天</span>
@@ -83,7 +83,8 @@
             </div>
         </div>
         <div class="mainRight">
-            <iframe class="mainIframe" v-bind:src="iframeUrl" frameborder="0"></iframe>
+            <iframe ref="chatFrame" v-if="chatLoaded" v-show="iframeUrl=='/chat_main'" class="mainIframe" src="/chat_main" frameborder="0"></iframe>
+            <iframe v-if="iframeUrl!='/chat_main'" class="mainIframe" v-bind:src="iframeUrl" frameborder="0"></iframe>
         </div>
     </template>
 </div>
@@ -98,14 +99,21 @@
             adminAvator:"",
             adminRole:"",
             onlineType:"success",
-            haveNewMessage:"",
+            haveNewMessage:0,
             iframeUrl:"/pannel",
+            chatLoaded:false,
         },
         methods: {
             focusWindow(){
                 var _this=this;
                 window.addEventListener('message',function(e){
+                    if(e.origin!==window.location.origin || !_this.$refs.chatFrame || e.source!==_this.$refs.chatFrame.contentWindow){ return; }
                     var redata=e.data;
+                    if(!redata || typeof redata!=="object"){ return; }
+                    if(redata.type=="unread_count"){
+                        if(Number.isInteger(redata.count) && redata.count>=0){ _this.haveNewMessage=redata.count; }
+                        return;
+                    }
                     if(!redata.name||!redata.body){
                         return;
                     }
@@ -120,9 +128,18 @@
                 });
             },
             openIframeUrl(url){
+                if(url=="/chat_main"){
+                    this.chatLoaded=true;
+                }
                 this.iframeUrl=url;
+                if(url=="/chat_main"){
+                    this.$nextTick(()=>{
+                        this.$refs.chatFrame.contentWindow.postMessage({type:"chat_visible"},window.location.origin);
+                    });
+                }
             },
             logout(){
+                this.chatLoaded=false;
                 localStorage.removeItem("token");
                 this.openIframeUrl('/login');
             },
@@ -147,6 +164,7 @@
                             window.location.href="/login";
                         } else {
                             _this.adminAvator=data.result.avator;
+                            _this.chatLoaded=true;
                             _this.iframeUrl = "/pannel";
                         }
                     }
