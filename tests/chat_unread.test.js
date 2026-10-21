@@ -35,6 +35,7 @@ function chat(server = { messages: [], nextId: 1 }) {
         }
     }
     const context = vm.createContext({
+        ChatWindow: require('../static/js/chat-window.js'),
         Vue: function(options) { return Object.assign({}, options.data, options.methods); },
         getWsBaseUrl: () => 'ws://localhost',
         localStorage: { getItem: () => 'test-token' },
@@ -174,4 +175,16 @@ test('history for a previously selected visitor cannot clear or replace the curr
     assert.equal(c.count('a'), 1);
     assert.equal(c.count('b'), 0);
     assert.equal(c.app.msgList.every(m => m.visitor_id === 'b'), true);
+});
+
+test('new messages remain unread while the selected conversation is scrolled into history', () => {
+    const c=chat();
+    c.app.listAtBottom=false;
+    c.receive('a');
+    assert.equal(c.count('a'),1);
+    assert.equal(c.app.msgList.length,0);
+    assert.equal(c.app.hasNewer,true);
+    assert.equal(c.server.messages[0].status,'unread');
+    c.app.showLatestMessages();
+    assert.equal(c.count('a'),0);
 });

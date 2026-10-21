@@ -13,6 +13,7 @@ function chat(kind = 'visitor', options = {}) {
     jquery.post = (url, data, success) => requests.push({ url, data, success });
     jquery.get = (url, success) => requests.push({ url, success });
     const context = vm.createContext({
+        ChatWindow: require('../static/js/chat-window.js'),
         Vue: function(config) { return Object.assign({}, config.data, config.methods); },
         getWsBaseUrl: () => 'ws://localhost',
         localStorage: { getItem: () => 'test-token' },
@@ -149,7 +150,7 @@ for (const kind of ['agent', 'visitor']) {
         assert.equal(c.requests.filter(request => request.url === sendUrl).length, 2);
         if (kind === 'visitor') assert.equal(c.app.msgList.length, 1);
     });
-    test(`${kind} retains older history beyond 200 messages when another reply arrives`, () => {
+    test(`${kind} keeps the old reading window bounded when another reply arrives`, () => {
         const c = chat(kind);
         c.app.msgList = Array.from({ length: 200 }, (_, i) => message(i + 26));
         c.app.messages.page = 15;
@@ -158,7 +159,9 @@ for (const kind of ['agent', 'visitor']) {
         assert.equal(c.app.msgList[0].id, kind === 'agent' ? 11 : 21);
         assert.equal(c.app.showLoadMore, true);
         c.receive(226);
-        assert.equal(c.app.msgList.length, kind === 'agent' ? 216 : 206);
+        assert.equal(c.app.msgList.length, 200);
+        assert.equal(c.app.hasNewer,true);
+        assert.equal(ids(c.app).includes(226),false);
         assert.equal(c.app.msgList[0].id, kind === 'agent' ? 11 : 21);
     });
 }
@@ -330,9 +333,47 @@ for (const kind of ['agent', 'visitor']) {
         assert.equal(older.data.before_id, 21);
         history(older, initial);
         assert.equal(c.app.msgList[0].id, kind === 'agent' ? 6 : 16);
-        assert.equal(c.app.msgList.length, kind === 'agent' ? 215 : 205);
+        assert.equal(c.app.msgList.length, 200);
+        assert.equal(c.app.hasNewer,true);
         c.receive(221);
         c.app.getHistoryMessage();
         assert.equal(c.history().data.before_id, kind === 'agent' ? 6 : 16);
     });
 }
+
+for (const kind of ['agent','visitor']) {
+    test(`${kind} bounds the history cache and can reload evicted newer records`, () => {
+        const c=chat(kind);c.app.messages.page=2;
+        c.app.msgList=Array.from({length:200},(_,i)=>message(1001+i));
+        c.app.getHistoryMessage();history(c.history(),Array.from({length:20},(_,i)=>1000-i));
+        assert.equal(c.app.msgList.length,200);
+        assert.equal(ids(c.app)[0],981);assert.equal(ids(c.app).at(-1),1180);
+        assert.equal(c.app.hasNewer,true);
+        c.app.getNewerMessages();const newer=c.history();
+        assert.equal(newer.data.after_id,1180);
+        history(newer,Array.from({length:20},(_,i)=>1181+i));
+        assert.equal(c.app.msgList.length,200);assert.equal(ids(c.app)[0],1001);
+        assert.equal(ids(c.app).at(-1),1200);
+        c.app.getNewerMessages();history(c.history(),[]);
+        assert.equal(c.app.hasNewer,false);
+    });
+    test(`${kind} new messages do not accumulate or move the reader away from history`, () => {
+        const c=chat(kind);c.app.msgList=[message(10)];c.app.hasNewer=true;c.app.listAtBottom=false;
+        let scrolls=0;c.app.scrollBottom=()=>{scrolls++;};
+        for(let i=11;i<1000;i++)c.receive(i);
+        assert.deepEqual(ids(c.app),[10]);assert.equal(scrolls,0);assert.equal(c.app.hasNewer,true);
+    });
+}
+
+test('a send acknowledgement cannot advance the reload cursor past a deferred incoming reply', () => {
+    const c=chat();c.app.msgList=[message(10)];c.app.hasNewer=true;c.app.listAtBottom=false;
+    c.app.messageContent='my reply';c.app.chatToUser();
+    const latest=c.history();const send=c.requests.find(r=>r.url==='/2/message');
+    c.receive(501);
+    finish(send,{code:200,result:{message_id:502}});
+    history(latest,[500,499,498,497,496]);
+    c.app.getNewerMessages();assert.equal(c.history().data.after_id,500);
+    history(c.history(),[501,502]);
+    assert.deepEqual(ids(c.app),[496,497,498,499,500,501,502]);
+    assert.equal(c.app.hasNewer,false);
+});

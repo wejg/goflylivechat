@@ -12,6 +12,8 @@
 
     <script src="/static/js/functions.js?v=fgffdwersdccvcbv"></script>
     <script src="/static/js/reconnecting-websocket.min.js"></script>
+    <script src="/static/js/chat-window.js?v=2"></script>
+    <link rel="stylesheet" href="/static/css/chat-window.css?v=2">
     <link rel="stylesheet" href="/static/css/common.css?v=sdsderfrgfgdfdf" />
     <link rel="stylesheet" href="/static/css/icono.min.css" />
     <link rel="stylesheet" href="/static/css/icon/iconfont.css?v=fgjlgfda"/>
@@ -29,27 +31,27 @@
             </div>
         </div>
         <div class="chatEntBox">
-            <div class="chatContext chatVisitorPage">
-                <div class="chatBox">
-                    <div class="chatNotice" v-on:click="getHistoryMessage" v-show="showLoadMore">
-                        <a href="javascript:;" class="chatNoticeContent" style="color: #07a9fe;">加载更多消息</a>
-                    </div>
-                    <el-row :gutter="2" v-for="v in msgList" v-bind:class="{'chatBoxMe': v.is_kefu==false}">
-                        <div class="chatTime" v-bind:class="{'chatTimeHide': v.show_time==false}"><span><{v.time}></span></div>
-                        <div v-if="v.is_kefu==true" style="display: flex;">
-                            <el-avatar style="margin-right:10px;flex-shrink: 0;" :size="36" :src="v.avator"></el-avatar>
+            <div class="chat-window-status" aria-live="polite"><{chatTitle}></div>
+            <chat-window ref="messageList" class="chatContext chatVisitorPage chatBox" :items="msgList" :older="showLoadMore" :newer="hasNewer" :loading="historyLoading"
+                         @older="getHistoryMessage" @newer="getNewerMessages" @latest="showLatestMessages" @position="onListPosition">
+                <template slot-scope="row">
+                    <el-row :gutter="2" v-bind:class="{'chatBoxMe': row.item.is_kefu==false}">
+                        <div class="chatTime" v-bind:class="{'chatTimeHide': row.item.show_time==false}"><span><{row.item.time}></span></div>
+                        <div v-if="row.item.is_kefu==true" style="display: flex;">
+                            <el-avatar style="margin-right:10px;flex-shrink: 0;" :size="36" :src="row.item.avator"></el-avatar>
                             <div class="chatMsgContent">
-                                <div class="chatContent chatContent2 replyContentBtn" v-html="v.content"></div>
+                                <div class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
                             </div>
                         </div>
-                        <div class="kefuMe" v-if="v.is_kefu==false" style="display: flex;justify-content: flex-end;">
-                            <div class="chatContent chatContent2 replyContentBtn" v-html="v.content"></div>
-                            <el-avatar style="margin-left:10px;flex-shrink: 0;" :size="36" :src="v.avator"></el-avatar>
+                        <div class="kefuMe" v-if="row.item.is_kefu==false" style="display: flex;justify-content: flex-end;">
+                            <div class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
+                            <el-avatar style="margin-left:10px;flex-shrink: 0;" :size="36" :src="row.item.avator"></el-avatar>
                         </div>
                         <div class="clear"></div>
                     </el-row>
-                </div>
-            </div>
+                </template>
+            </chat-window>
+
             <div class="chatBoxSend">
                 <div class="visitorIconBox">
                     <el-tooltip content="发送表情" placement="top">
@@ -122,6 +124,11 @@
             showLoadMore:false,
             historyRequest:0,
             historyLoading:false,
+            hasNewer:false,
+            listAtBottom:true,
+            newerVersion:0,
+            newerCursor:null,
+            visibleMessageId:0,
             messages:{
                 page:1,
                 pagesize:5,
@@ -175,7 +182,7 @@
                         return;
                     }
                     this.chatTitle=msg
-                    $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
+                    this.showTitle(this.chatTitle);
                     this.scrollBottom();
                 }
                 if (redata.type == "message") {
@@ -190,9 +197,11 @@
                     content.is_kefu = true;
                     content.time = msg.time;
                     content.id = msg.message_id;
-                    this.msgList.push(content);
-                    this.sortMessages();
-                    this.trimMessages();
+                    const follow=this.listAtBottom && !this.hasNewer;
+                    if(follow){
+                        this.newerCursor=Math.max(this.newerCursor || 0,content.id || 0);
+                        this.msgList.push(content);this.sortMessages();this.trimMessages();
+                    }else{this.hasNewer=true;this.newerVersion++;}
 
                     notify(msg.name, {
                         body: msg.content,
@@ -201,28 +210,28 @@
                         window.focus();
                         notification.close();
                     });
-                    this.scrollBottom();
+                    if(follow){this.scrollBottom();}
                     flashTitle();
                     clearInterval(this.timer);
                     this.alertSound();
                 }
                 if (redata.type == "close") {
                     this.chatTitle="会话已结束";
-                    $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
+                    this.showTitle(this.chatTitle);
                     this.scrollBottom();
                     this.socket.close();
                     this.focusSendConn=true;
                 }
                 if (redata.type == "force_close") {
                     this.chatTitle="客服已结束会话";
-                    $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
+                    this.showTitle(this.chatTitle);
                     this.scrollBottom();
                     this.socket.close();
                     this.socketClosed=true;
                 }
                 if (redata.type == "auto_close") {
                     this.chatTitle="因长时间无回应，会话已关闭";
-                    $(".chatBox").append("<div class=\"chatTime\">"+this.chatTitle+"</div>");
+                    this.showTitle(this.chatTitle);
                     this.scrollBottom();
                     this.socket.close();
                     this.socketClosed=true;
@@ -246,6 +255,7 @@
                     });
                     return;
                 }
+                if(this.hasNewer || !this.listAtBottom){this.showLatestMessages();}
                 this.sendDisabled=true;
                 let _this=this;
 
@@ -333,19 +343,23 @@
                     _this.initConn();
                 });
             },
-            getHistoryMessage:function(){
+            getHistoryMessage:function(direction){
                 if(this.historyLoading){ return; }
                 this.historyLoading=true;
                 const request=++this.historyRequest;
+                const newer=direction==='newer';
+                const version=this.newerVersion;
                 let params={
                     page:this.messages.page,
                     pagesize: this.messages.pagesize,
                     visitor_id: this.visitor.visitor_id,
                 }
-                const oldest=this.msgList.find(message=>message.id && !message.sending);
-                if(params.page>1 && oldest){ params.before_id=oldest.id; }
+                const persisted=this.msgList.filter(message=>message.id && !message.sending);
+                const boundary=newer ? persisted[persisted.length-1] : persisted[0];
+                if(boundary && (newer || params.page>1)){params[newer?'after_id':'before_id']=newer ? (this.newerCursor || boundary.id) : boundary.id;}
+                const latest=!newer && params.page==1;
                 // 成功后只替换旧快照，保留请求期间收到或仍在发送的消息。
-                const previousMessages=new Set(params.page==1 ? this.msgList.filter(message=>!message.sending) : []);
+                const previousMessages=new Set(latest ? this.msgList.filter(message=>!message.sending) : []);
                 let _this=this;
                 $.ajax({
                     url:"/2/messagesPages",
@@ -357,15 +371,17 @@
                     if(res.code!=200 || request!=_this.historyRequest || params.visitor_id!=_this.visitor.visitor_id){
                         return;
                     }
-                    if(params.page==1){
+                    if(latest){
                         _this.msgList=_this.msgList.filter(message=>!previousMessages.has(message));
                     }
                     let msgList=res.result.list;
-                    if(msgList.length>=_this.messages.pagesize){
-                        _this.showLoadMore=true;
-                    }else{
-                        _this.showLoadMore=false;
+                    if(latest){_this.newerCursor=0;}
+                    if(latest || newer){
+                        for(const message of msgList){_this.newerCursor=Math.max(_this.newerCursor || 0,message.id);}
                     }
+                    if(newer){_this.hasNewer=msgList.length>=params.pagesize || version!=_this.newerVersion;}
+                    else{_this.showLoadMore=msgList.length>=params.pagesize;}
+                    if(latest){_this.hasNewer=version!=_this.newerVersion;}
                     for(let i in msgList){
                         let item = msgList[i];
                         if(_this.msgList.some(message=>message.id==item.id)){ continue; }
@@ -382,10 +398,12 @@
                         _this.msgList.unshift(item);
                     }
                     _this.sortMessages();
-                    if(params.page==1){
-                        _this.scrollBottom();
+                    _this.trimMessages(newer || latest ? 'newer' : 'older');
+                    if((newer || latest) && _this.msgList.some(message=>message.id>_this.newerCursor)){_this.hasNewer=true;}
+                    if(latest){
+                        _this.scrollBottom(true);
                     }
-                    _this.messages.page=params.page+1;
+                    if(!newer){_this.messages.page=params.page+1;}
                     },
                     complete:function(){
                         if(request==_this.historyRequest){ _this.historyLoading=false; }
@@ -399,16 +417,30 @@
                 let index=0;
                 this.msgList=messages.map(message=>message.id ? persisted[index++] : message).concat(pending);
             },
-            trimMessages:function(){
-                // 已加载旧页时保留历史，避免下一条实时消息又将其裁掉。
-                if(this.messages.page<=2 && this.msgList.length > 200){
-                    this.msgList.splice(0, this.msgList.length - 200);
+            trimMessages(direction){
+                const cache=ChatWindow.retain(this.msgList,direction || 'newer');
+                this.msgList=cache.items;
+                if(cache.older){this.showLoadMore=true;}
+                if(cache.newer){
+                    this.hasNewer=true;
+                    const saved=this.msgList.filter(message=>message.id && !message.sending);
+                    if(saved.length){this.newerCursor=Math.min(saved[saved.length-1].id,this.newerCursor || Infinity);}
                 }
             },
-            scrollBottom:function(){
-                var _this=this;
-                this.$nextTick(function(){
-                    $('.chatVisitorPage').scrollTop($(".chatVisitorPage")[0].scrollHeight);
+            onListPosition(position){
+                this.listAtBottom=position.bottom;
+            },
+            getNewerMessages(){if(this.newerCursor===0){this.showLatestMessages();}else{this.getHistoryMessage('newer');}},
+            showLatestMessages(){
+                this.messages.page=1;
+                this.historyLoading=false;
+                this.listAtBottom=true;
+                this.getHistoryMessage();
+            },
+            scrollBottom(force){
+                if(force!==true && (!this.listAtBottom || this.hasNewer)){return;}
+                this.$nextTick(()=>{
+                    if(this.$refs && this.$refs.messageList){this.$refs.messageList.toBottom();}
                 });
             },
             getNowDate : function() {
@@ -436,7 +468,7 @@
                     if(code!=200) return;
                     _this.kefuInfo=res.result;
                     _this.showTitle(_this.kefuInfo.nickname+" at your service.");
-                    if(!_this.kefuInfo.welcome) return;
+                    if(!_this.kefuInfo.welcome || _this.hasNewer || !_this.listAtBottom) return;
                     var msg={
                         content:replaceContent(_this.kefuInfo.welcome),
                         avator:_this.kefuInfo.avatar,
@@ -652,7 +684,7 @@
                 });
             },
             showTitle:function(title){
-                $(".chatBox").append("<div class='chatNotice'><div class=\"chatNoticeContent\"><span>"+title+"</span></div></div>");
+                this.chatTitle=title;
                 this.scrollBottom();
             },
         },

@@ -59,3 +59,33 @@ func TestHistoryCursorRejectsInvalidIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestHistoryAfterCursorReturnsNextMessagesInAscendingOrder(t *testing.T) {
+	f := newTransferFixture(t)
+	var ids []uint
+	for i := 0; i < 8; i++ {
+		m := models.Message{VisitorId: f.visitor.VisitorId, KefuId: f.from.Name, MesType: "kefu", Content: fmt.Sprint(i), Status: "read"}
+		if err := models.DB.Create(&m).Error; err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, m.ID)
+	}
+	result := f.request(t, "GET", "/2/messagesPages?"+url.Values{"visitor_id": {f.visitor.VisitorId}, "after_id": {fmt.Sprint(ids[2])}, "pagesize": {"3"}, "page": {"99"}}.Encode(), f.from.Name, nil)
+	if result.Code != 200 || len(result.Result.List) != 3 {
+		t.Fatalf("after cursor: %+v", result)
+	}
+	for i, m := range result.Result.List {
+		if m.ID != ids[i+3] {
+			t.Fatalf("row %d got %d want %d", i, m.ID, ids[i+3])
+		}
+	}
+	for _, params := range []url.Values{
+		{"after_id": {"0"}}, {"after_id": {""}}, {"after_id": {"-1"}}, {"after_id": {"oops"}}, {"after_id": {"4294967296"}}, {"after_id": {"1"}, "before_id": {"2"}},
+	} {
+		params.Set("visitor_id", f.visitor.VisitorId)
+		r := f.request(t, "GET", "/2/messagesPages?"+params.Encode(), f.from.Name, nil)
+		if r.Code != 400 {
+			t.Fatalf("accepted invalid cursor %v: %+v", params, r)
+		}
+	}
+}

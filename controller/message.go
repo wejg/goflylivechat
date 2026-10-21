@@ -327,18 +327,28 @@ func GetMessagespages(c *gin.Context) {
 	queryPage := page
 	query := "message.visitor_id = ?"
 	args := []interface{}{visitorId}
-	if _, provided := c.Request.URL.Query()["before_id"]; provided {
-		beforeID, err := strconv.ParseUint(c.Query("before_id"), 10, 32)
-		if err != nil || beforeID == 0 {
-			c.JSON(200, gin.H{"code": 400, "msg": "before_id必须是正整数消息ID"})
+	_, before := c.Request.URL.Query()["before_id"]
+	_, after := c.Request.URL.Query()["after_id"]
+	if before && after {
+		c.JSON(200, gin.H{"code": 400, "msg": "不能同时指定前后游标"})
+		return
+	}
+	if before || after {
+		key, operator := "before_id", " < "
+		if after {
+			key, operator = "after_id", " > "
+		}
+		id, err := strconv.ParseUint(c.Query(key), 10, 32)
+		if err != nil || id == 0 {
+			c.JSON(200, gin.H{"code": 400, "msg": key + "必须是正整数消息ID"})
 			return
 		}
-		query += " AND message.id < ?"
-		args = append(args, beforeID)
+		query += " AND message.id" + operator + "?"
+		args = append(args, id)
 		queryPage = 1
 	}
 	count := models.CountMessage("visitor_id = ?", visitorId)
-	list := models.FindMessageByPage(uint(queryPage), uint(pageSize), query, args...)
+	list := models.FindMessageByPage(uint(queryPage), uint(pageSize), after, query, args...)
 	c.JSON(200, gin.H{
 		"code": 200,
 		"msg":  "ok",

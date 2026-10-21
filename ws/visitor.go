@@ -20,6 +20,7 @@ func NewVisitorServer(c *gin.Context) {
 		log.Print("upgrade:", err)
 		return
 	}
+	defer conn.Close()
 	conn.SetReadLimit(wsReadLimit)
 	_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
 	user := &User{

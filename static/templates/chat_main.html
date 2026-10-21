@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/static/css/common.css?v=dgftr65ujhfg">
     <script src="/static/js/functions.js"></script>
     <script src="/static/js/reconnecting-websocket.min.js"></script>
+    <script src="/static/js/chat-window.js?v=2"></script>
+    <link rel="stylesheet" href="/static/css/chat-window.css?v=2">
     <link rel="stylesheet" href="/static/css/icon/iconfont.css?v=fgjlgfda"/>
     <style>
         html, body {overflow:hidden;height: 100%;padding: 0;margin: 0;background-color: #f5f5f5;}
@@ -96,23 +98,22 @@
                         <el-button v-on:click="closeVisitor(visitor.visitor_id)" size="small" type="success" plain icon="el-icon-close">结束会话</el-button>
                     </div>
 
-                    <div class="chatBox">
-                        <div style="text-align: center;" v-on:click="getHistoryMessage" v-show="showLoadMore">
-                            <a href="javascript:;" class="chatNoticeContent" style="color: #07a9fe;">加载更多消息</a>
-                        </div>
-
-                        <el-row :gutter="2" v-for="v in msgList" v-bind:class="{'chatBoxMe': v.is_kefu==true}">
-                            <div class="chatTime"><{v.time}></div>
+            <chat-window ref="messageList" class="chatBox" :items="msgList" :older="showLoadMore" :newer="hasNewer" :loading="historyLoading"
+                         @older="getHistoryMessage" @newer="getNewerMessages" @latest="showLatestMessages" @position="onListPosition">
+                <template slot-scope="row">
+                        <el-row :gutter="2" v-bind:class="{'chatBoxMe': row.item.is_kefu==true}">
+                            <div class="chatTime"><{row.item.time}></div>
                             <div class="chatRow">
-                                <el-avatar v-if="v.is_kefu==false" class="chatRowAvator" :size="48" :src="v.avator"></el-avatar>
+                                <el-avatar v-if="row.item.is_kefu==false" class="chatRowAvator" :size="48" :src="row.item.avator"></el-avatar>
                                 <div class="chatMsgContent">
-                                    <div class="chatUser"><{v.name}></div>
-                                    <div class="chatContent" v-html="v.content"></div>
+                                    <div class="chatUser"><{row.item.name}></div>
+                                    <div class="chatContent" v-html="row.item.content"></div>
                                 </div>
-                                <el-avatar v-if="v.is_kefu==true" class="chatRowAvator" :size="48" :src="v.avator"></el-avatar>
+                                <el-avatar v-if="row.item.is_kefu==true" class="chatRowAvator" :size="48" :src="row.item.avator"></el-avatar>
                             </div>
                         </el-row>
-                    </div>
+                </template>
+            </chat-window>
 
                     <div class="kefuFuncBox">
                         <div class="iconBtnsBox">
@@ -378,6 +379,11 @@
             showLoadMore:false,
             historyRequest:0,
             historyLoading:false,
+            hasNewer:false,
+            listAtBottom:true,
+            newerVersion:0,
+            newerCursor:null,
+            visibleMessageId:0,
             messages:{
                 page:1,
                 pagesize:15,
@@ -402,11 +408,31 @@
                 let index=0;
                 this.msgList=messages.map(message=>message.id ? persisted[index++] : message).concat(pending);
             },
-            trimMessages(){
-                // 已加载旧页时保留历史，避免下一条实时消息又将其裁掉。
-                if(this.messages.page<=2 && this.msgList.length > 200){
-                    this.msgList.splice(0, this.msgList.length - 200);
+            trimMessages(direction){
+                const cache=ChatWindow.retain(this.msgList,direction || 'newer');
+                this.msgList=cache.items;
+                if(cache.older){this.showLoadMore=true;}
+                if(cache.newer){
+                    this.hasNewer=true;
+                    const saved=this.msgList.filter(message=>message.id && !message.sending);
+                    if(saved.length){this.newerCursor=Math.min(saved[saved.length-1].id,this.newerCursor || Infinity);}
                 }
+            },
+            onListPosition(position){
+                this.listAtBottom=position.bottom;
+                if(position.lastVisibleId!=this.visibleMessageId){
+                    this.visibleMessageId=position.lastVisibleId;
+                    if(this.msgList.some(message=>message.id==position.lastVisibleId)){
+                        this.markMessagesRead(this.currentGuest,position.lastVisibleId);
+                    }
+                }
+            },
+            getNewerMessages(){if(this.newerCursor===0){this.showLatestMessages();}else{this.getHistoryMessage('newer');}},
+            showLatestMessages(){
+                this.messages.page=1;
+                this.historyLoading=false;
+                this.listAtBottom=true;
+                this.getHistoryMessage();
             },
             //心跳
             ping(){
@@ -489,7 +515,10 @@
                     content.is_kefu = msg.is_kefu=="yes"? true:false;
                     content.time = msg.time;
                     content.id = msg.message_id;
-                    if (msg.id == this.currentGuest && (!content.id || !this.msgList.some(message=>message.id==content.id))) {
+                    const follow=this.listAtBottom && !this.hasNewer;
+                    if(msg.id==this.currentGuest && !follow){this.hasNewer=true;this.newerVersion++;}
+                    if (msg.id == this.currentGuest && follow && (!content.id || !this.msgList.some(message=>message.id==content.id))) {
+                        this.newerCursor=Math.max(this.newerCursor || 0,content.id || 0);
                         this.msgList.push(content);
                         this.sortMessages();
                         this.trimMessages();
@@ -501,13 +530,13 @@
                         }
                     }
                     if(!content.is_kefu){
-                        if(this.currentGuest==msg.id && this.chatIsVisible()){
-                            this.markMessagesRead(msg.id,msg.message_id);
+                        if(this.currentGuest==msg.id && this.chatIsVisible() && follow){
+                            this.readCurrentMessages();
                         }else{
                             this.getUnreadMessages();
                         }
                     }
-                    this.scrollBottom();
+                    if(follow){this.scrollBottom();}
                     if(content.is_kefu){
                         return;
                     }
@@ -536,6 +565,7 @@
                 //获取当前客户消息
                 this.messages.page=1;
                 this.msgList=[];
+                this.hasNewer=false;this.newerCursor=null;this.listAtBottom=true;this.visibleMessageId=0;
                 this.showLoadMore=true;
                 this.historyLoading=false;
                 this.getHistoryMessage();
@@ -552,6 +582,7 @@
                 if(this.sendDisabled){
                     return;
                 }
+                if(this.hasNewer || !this.listAtBottom){this.showLatestMessages();}
                 this.sendDisabled=true;
                 let _this=this;
                 let mes = {};
@@ -752,6 +783,12 @@
                 });
             },
             readCurrentMessages(){
+                const list=this.$refs && this.$refs.messageList;
+                if(list){
+                    const id=list.visibleID();
+                    if(this.msgList.some(message=>message.id==id)){this.markMessagesRead(this.currentGuest,id);}
+                    return;
+                }
                 let lastMessageId=0;
                 for(const message of this.msgList){
                     lastMessageId=Math.max(lastMessageId,message.id || 0);
@@ -763,18 +800,23 @@
                     this.readCurrentMessages();
                 }
             },
-            getHistoryMessage(){
+            getHistoryMessage(direction){
                 if(this.historyLoading){ return; }
                 this.historyLoading=true;
                 const request=++this.historyRequest;
+                const newer=direction==='newer';
+                const version=this.newerVersion;
                 const visitorId=this.currentGuest;
                 let params={
                     page:this.messages.page,
                     pagesize: this.messages.pagesize,
                     visitor_id: visitorId,
                 }
-                const oldest=this.msgList.find(message=>message.id && !message.sending);
-                if(params.page>1 && oldest){ params.before_id=oldest.id; }
+                const persisted=this.msgList.filter(message=>message.id && !message.sending);
+                const boundary=newer ? persisted[persisted.length-1] : persisted[0];
+                if(boundary && (newer || params.page>1)){params[newer?'after_id':'before_id']=newer ? (this.newerCursor || boundary.id) : boundary.id;}
+                const latest=!newer && params.page==1;
+                const previousMessages=new Set(latest ? this.msgList.filter(message=>!message.sending) : []);
                 let _this=this;
                 $.ajax({
                     url:"/2/messagesPages",
@@ -785,12 +827,15 @@
                     if(res.code!=200 || request!=_this.historyRequest || _this.currentGuest!=visitorId){
                         return;
                     }
+                    if(latest){_this.msgList=_this.msgList.filter(message=>!previousMessages.has(message));}
                     let msgList=res.result.list;
-                    if(msgList.length>=_this.messages.pagesize){
-                        _this.showLoadMore=true;
-                    }else{
-                        _this.showLoadMore=false;
+                    if(latest){_this.newerCursor=0;}
+                    if(latest || newer){
+                        for(const message of msgList){_this.newerCursor=Math.max(_this.newerCursor || 0,message.id);}
                     }
+                    if(newer){_this.hasNewer=msgList.length>=params.pagesize || version!=_this.newerVersion;}
+                    else{_this.showLoadMore=msgList.length>=params.pagesize;}
+                    if(latest){_this.hasNewer=version!=_this.newerVersion;}
                     for(let i in msgList){
                         let item = msgList[i];
                         if(_this.msgList.some(message=>message.id==item.id)){ continue; }
@@ -808,11 +853,13 @@
                         _this.msgList.unshift(item);
                     }
                     _this.sortMessages();
+                    _this.trimMessages(newer || latest ? 'newer' : 'older');
+                    if((newer || latest) && _this.msgList.some(message=>message.id>_this.newerCursor)){_this.hasNewer=true;}
                     _this.readCurrentMessages();
-                    if(params.page==1){
-                        _this.scrollBottom();
+                    if(latest){
+                        _this.scrollBottom(true);
                     }
-                    _this.messages.page=params.page+1;
+                    if(!newer){_this.messages.page=params.page+1;}
                     },
                     complete:function(){
                         if(request==_this.historyRequest){ _this.historyLoading=false; }
@@ -825,6 +872,7 @@
                 let _this=this;
                 this.currentGuest=visitorId;
                 this.msgList=[];
+                this.hasNewer=false;this.newerCursor=null;this.listAtBottom=true;this.visibleMessageId=0;
                 this.messages.page=1;
                 this.showLoadMore=true;
                 this.historyLoading=false;
@@ -946,9 +994,10 @@
                 return replaceContent(content)
             },
             //滚到底部
-            scrollBottom(){
-                this.$nextTick(() => {
-                    $('.chatBox').scrollTop($(".chatBox")[0].scrollHeight);
+            scrollBottom(force){
+                if(force!==true && (!this.listAtBottom || this.hasNewer)){return;}
+                this.$nextTick(()=>{
+                    if(this.$refs && this.$refs.messageList){this.$refs.messageList.toBottom();}
                 });
             },
             //jquery

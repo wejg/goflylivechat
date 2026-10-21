@@ -65,3 +65,5 @@ WebSocket 延迟从该条消息开始发起 HTTP 请求时计，到实际接收�
 复跑命令和清理说明见 [tests/load/README.md](/Users/diannao/goflylivechat/tests/load/README.md)。本轮临时容器、匿名卷、网络和镜像标签均已移除，原有应用、数据库继续运行。
 
 报告脚本调整后的 5 秒短程复核见 [短程 JSON](/Users/diannao/goflylivechat/reports/loadtest-20261021042157623-1217d2/result.json)：HTTP 非预期失败为 0，456 条消息的整库核对及 491 次投递核对通过，SQL 行快照已保存；整体仍因同样的 110 次访客连接关闭超时失败。这是脚本校验和连接问题复现，不替代上述完整 10 分钟失败结果。
+
+后续已追查并修复访客连接清理和压测调度问题，见 [根因追查与复测报告](/Users/diannao/goflylivechat/reports/loadtest-rootcause-20261021.md)。本文件保留原轮次失败事实；其中 62 条响应失败的历史具体原因仍未能还原，不能据后续通过结果抹去。

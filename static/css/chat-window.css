@@ -1,0 +1,10 @@
+#app.chatCenter { width:100%; height:100vh; height:100dvh; }
+.chat-window { overflow-y:auto; overflow-x:hidden; overflow-anchor:none; position:relative; min-height:0; }
+.chat-window-row { display:flow-root; padding:0 4px; }
+.chat-window-action { display:block; width:100%; height:32px; padding:0; border:0; background:transparent; color:#087cae; cursor:pointer; font:inherit; text-align:center; }
+.chat-window-action:disabled { color:#666; cursor:wait; }
+.chat-window-action:focus-visible { outline:2px solid #409eff; outline-offset:-2px; }
+.chat-window-status { height:24px; line-height:24px; padding:0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#666; font-size:12px; }
+.chatEntBox .chat-window.chatVisitorPage { height:calc(100% - 110px); }
+
+.chat-window-latest { position:sticky; bottom:4px; z-index:1; width:auto; margin:0 auto; padding:0 14px; border-radius:16px; background:#fff; box-shadow:0 1px 5px #bbb; }

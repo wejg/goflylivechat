@@ -19,13 +19,14 @@ const env = { ...process.env, MARIADB_ROOT_PASSWORD: password, GOFLY_DB_PASSWORD
 const report = {
     runId, startedAt: new Date().toISOString(), status: 'running',
     config: { visitors: 100, agents: 5, seconds: duration, intervalSeconds: 5, appCPU: 2, dbCPU: 2, memoryMiBEach: 512,
+        pacing: 'five seconds after each completed wave; no catch-up',
         sourceIPs: 'distinct X-Forwarded-For per virtual client; only the isolated network gateway is trusted; business rate limiter unchanged' },
-    phases: [], checks: [], issues: [], phaseFailures: {}, resources: [], requests: {}, unexpectedCloses: 0,
+    requestErrors: [], waves: [], clockGaps: [], phases: [], checks: [], issues: [], phaseFailures: {}, resources: [], requests: {}, unexpectedCloses: 0,
 };
 const sockets = new Set(), records = [], recordsByContent = new Map(), background = new Set(), horizons = new Map();
 const latencies = [], closes = [], created = new Set();
-let base, agents = [], visitors = [], phase = 'setup', stats, stopping = false, heartbeat;
-let failures = 0, interrupted = false, cleaning = false;
+let base, agents = [], visitors = [], phase = 'setup', stats, clockMonitor, stopping = false, heartbeat;
+let failures = 0, interrupted = false, cleaning = false, nextWaveAt = 0;
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
     interrupted = true;
     log(`${signal}: stopping after the in-flight operation and cleaning up this run`);
@@ -56,6 +57,7 @@ async function api(endpoint, { agent, ip, data, token, expectedCode = 200, metri
     const key = metric || `${data ? 'POST' : 'GET'} ${endpoint.split('?')[0]}`;
     const group = report.requests[key] ||= { count: 0, errors: 0, ms: [] };
     group.count++;
+    let httpStatus, businessCode, responseMessage;
     try {
         const response = await fetch(base + endpoint, {
             method: data ? 'POST' : 'GET',
@@ -63,11 +65,20 @@ async function api(endpoint, { agent, ip, data, token, expectedCode = 200, metri
             body: data ? new URLSearchParams(data) : undefined,
             signal: AbortSignal.timeout(10000),
         });
+        httpStatus = response.status;
         const body = await response.json();
+        businessCode = body.code; responseMessage = body.msg;
         assert.equal(response.status, 200, `${endpoint} HTTP status`);
         assert.equal(body.code, expectedCode, `${endpoint}: ${JSON.stringify(body).slice(0, 240)}`);
         return body.result ?? body;
-    } catch (error) { group.errors++; throw new Error(`${key}: ${error.message}${error.cause ? `; cause: ${error.cause.code || ''} ${error.cause.message}` : ''}`); }
+    } catch (error) {
+        group.errors++;
+        report.requestErrors.push({ at: new Date().toISOString(), phase, endpoint: key, ip: ip || agent?.ip,
+            content: data?.content, visitorId: data?.visitor_id, elapsedMs: performance.now() - started,
+            httpStatus, businessCode, responseMessage, name: error.name, message: error.message,
+            cause: error.cause ? { code: error.cause.code, message: error.cause.message } : undefined });
+        throw new Error(`${key}: ${error.message}${error.cause ? `; cause: ${error.cause.code || ''} ${error.cause.message}` : ''}`);
+    }
     finally { group.ms.push(performance.now() - started); }
 }
 function expectedCounts(agent) {
@@ -177,6 +188,10 @@ async function verify(description) {
     report.checks.push({ ...check, messages: records.filter(r => r.accepted).length, trackedSockets: sockets.size, openSockets: [...sockets].filter(s => s.readyState === WebSocket.OPEN).length, closingSockets: [...sockets].filter(s => s.readyState === WebSocket.CLOSING).length, at: new Date().toISOString() });
 }
 async function wave(active, sequence) {
+    // Phase transitions must respect the same per-client pause as steady traffic.
+    await sleep(Math.max(0, nextWaveAt - performance.now()));
+    const waveSample = { phase, sequence, at: new Date().toISOString(), started: performance.now() };
+    report.waves.push(waveSample);
     const jobs = active.map(v => send(v, 'visitor', sequence));
     for (const agent of agents) {
         const owned = active.filter(v => v.agent === agent);
@@ -195,6 +210,8 @@ async function wave(active, sequence) {
     const done = await Promise.allSettled(jobs);
     for (const result of done) if (result.status === 'rejected') issue(result.reason.message);
     try { await drain(); } catch (error) { issue(error.message); }
+    waveSample.elapsedMs = performance.now() - waveSample.started;
+    nextWaveAt = performance.now() + 5000;
 }
 function percentile(values, quantile) {
     if (!values.length) return null;
@@ -248,6 +265,15 @@ try {
     });
     stats.stderr.on('data', () => {});
     stats.on('error', error => issue('resource monitor: ' + error.message));
+    let lastWall = Date.now(), lastMono = performance.now();
+    clockMonitor = setInterval(() => {
+        const wall = Date.now(), mono = performance.now();
+        const wallMs = wall - lastWall, monotonicMs = mono - lastMono;
+        if (wallMs > 1500 || monotonicMs > 1500 || Math.abs(wallMs - monotonicMs) > 100) {
+            report.clockGaps.push({ at: new Date().toISOString(), wallMs, monotonicMs });
+        }
+        lastWall = wall; lastMono = mono;
+    }, 1000);
     phase = 'rate-limit';
     log('Checking same-IP rate limiting with the unchanged business limiter');
     const v = visitors[0];
@@ -270,7 +296,10 @@ try {
             await wave(visitors.slice(0, count), sequence++);
             if (round % 12 === 0) { await verify(`${name} checkpoint ${round}`); log(`${name}: ${Math.floor((performance.now() - start) / 1000)}s, saved ${records.length}, sockets ${sockets.size}, errors ${failures}`); }
             round++;
-            await sleep(Math.max(0, Math.min(start + round * 5000, start + seconds * 1000) - performance.now()));
+            // Each client waits after completion; never bunch delayed rounds to catch up.
+            const remaining = start + seconds * 1000 - performance.now();
+            await sleep(Math.max(0, Math.min(5000, remaining)));
+            if (remaining <= 5000) break;
         }
         const elapsed = (performance.now() - start) / 1000;
         await verify(`${name} complete`);
@@ -329,8 +358,9 @@ try {
 } catch (error) {
     report.status = interrupted ? 'interrupted' : 'failed'; report.fatalError = error.message; if (report.messageAudit?.status === 'running') report.messageAudit.status = 'failed'; issue(error.stack || error.message); log(`FAILED: ${error.message}`);
 } finally {
-    cleaning = true; stopping = true; clearInterval(heartbeat); stats?.kill('SIGTERM');
+    cleaning = true; stopping = true; clearInterval(heartbeat); clearInterval(clockMonitor); stats?.kill('SIGTERM');
     for (const socket of sockets) { socket.plannedClose = true; socket.close(); }
+    await writeFile(output + '/message-ledger.json', JSON.stringify(records.map(({ visitor, ...record }) => ({ ...record, visitorId: visitor.id, agentName: visitor.agent.name }))));
     report.finishedAt = new Date().toISOString();
     report.failures = failures;
     report.closes = closes;
@@ -342,6 +372,8 @@ try {
         try {
             const logs = await docker(['logs', names.app], { includeStderr: true });
             await writeFile(output + '/app.log', logs.replace(/token=[^&\s"]+/g, 'token=[REDACTED]'));
+            const accessLogs = await docker(['exec', names.app, 'sh', '-c', 'cat /app/logs/*.log']);
+            await writeFile(output + '/access.log', accessLogs.replace(/token=[^&\s"]+/g, 'token=[REDACTED]'));
             const state = JSON.parse(await docker(['inspect', names.app]))[0].State;
             report.containerState = { oomKilled: state.OOMKilled, restartCount: JSON.parse(await docker(['inspect', names.app]))[0].RestartCount };
         } catch (error) { issue('log collection: ' + error.message); report.status = 'failed'; }
