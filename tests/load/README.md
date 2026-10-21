@@ -26,12 +26,17 @@ node tests/load/run.mjs
 ```sh
 LOADTEST_SECONDS=5 node tests/load/run.mjs
 LOADTEST_OUTPUT=reports/my-loadtest node tests/load/run.mjs
+LOADTEST_VISITORS=500 LOADTEST_AGENTS=5 LOADTEST_CONNECT_BATCH=25 LOADTEST_CONNECT_DELAY_MS=100 LOADTEST_SECONDS=5 node tests/load/run.mjs
 ```
 
-`LOADTEST_SECONDS` 支持 5–3600 秒；只改变 100 访客阶段，预热和恢复检查仍执行。`Ctrl-C` 请求停止，当前操作结束后清理本轮资源。若进程被强制杀死，需按本轮唯一的 `gofly-load-<runId>` 名称清理残留资源。
+`LOADTEST_SECONDS` 支持 5–3600 秒；`LOADTEST_MEMORY_MIB` 调整临时应用/数据库容器内存上限，默认 512 MiB；`LOADTEST_VISITORS` 支持 10–2000 个访客；`LOADTEST_AGENTS` 调整客服数量；`LOADTEST_CONNECT_BATCH` 和 `LOADTEST_CONNECT_DELAY_MS` 用于把连接建立分批，区分连接洪峰和稳定并发；只改变 100 访客阶段，预热和恢复检查仍执行。`Ctrl-C` 请求停止，当前操作结束后清理本轮资源。若进程被强制杀死，需按本轮唯一的 `gofly-load-<runId>` 名称清理残留资源。
 
 这是协议级负载，不包含 100 个浏览器的 DOM 渲染。此固定负载用于验证稳定性和消息正确性，不能作为生产服务器最大容量结论。构建使用当前工作区（包括未提交改动），JSON 记录提交号、Go 工作区差异哈希及镜像 ID。
 
 早期脚本使用固定目标时刻并追赶积压，可能触发原有单 IP 限流；现已改为每轮结束后等待 5 秒，跨阶段也共用同一等待时刻，不再追赶，因此实际每秒发送数以 `phases` 中的消息数和时长计算，不能固定写成 21 条/秒。`messageAudit.savedWithoutAcknowledgement` 表示已经入库但发送未得到成功响应的行数；此时整库核对失败，不能仅用投递 `lost=0` 判断发送成功。
 
 诊断数据：`requestErrors` 保留每次请求失败的 HTTP/业务返回码、客户端异常及底层原因；`waves` 保留每轮实际发送时刻与耗时；`clockGaps` 记录事件循环或时钟异常。`message-ledger.json` 保存每条消息的确认和投递记录，`access.log` 保存脱敏的服务端访问日志，便于将落库但响应失败的消息与对应请求关联。原始 `issues` 仍为前 30 条摘要，不能用它替代完整的 `requestErrors`。
+
+专项模式：`LOADTEST_FAULT_TEST=1` 会通过临时本地代理丢弃一次成功响应，验证已落库但客户端未收到响应时的重试风险；`LOADTEST_LIMIT_BOUNDARY=1` 会验证 500ms 拒绝、约 4 秒成功的限流边界。
+
+消息发送会携带 `client_message_id`，故障注入复测使用同一键重试，验证数据库不会重复保存同一消息。

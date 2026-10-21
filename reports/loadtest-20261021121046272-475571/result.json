@@ -1,0 +1,325 @@
+{
+  "runId": "20261021121046272-475571",
+  "startedAt": "2026-10-21T12:10:46.275Z",
+  "status": "failed",
+  "config": {
+    "visitors": 100,
+    "agents": 5,
+    "seconds": 5,
+    "intervalSeconds": 5,
+    "appCPU": 2,
+    "dbCPU": 2,
+    "memoryMiBEach": 512,
+    "pacing": "five seconds after each completed wave; no catch-up",
+    "sourceIPs": "distinct X-Forwarded-For per virtual client; only the isolated network gateway is trusted; business rate limiter unchanged",
+    "baseURL": "http://127.0.0.1:60151"
+  },
+  "requestErrors": [
+    {
+      "at": "2026-10-21T12:11:16.923Z",
+      "phase": "rate-limit",
+      "endpoint": "fault response drop",
+      "ip": "10.88.2.1",
+      "content": "LT:20261021121046272-475571:load_visitor_0:fault:response-drop:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "elapsedMs": 11.065500000000611,
+      "name": "TypeError",
+      "message": "fetch failed",
+      "cause": {
+        "code": "UND_ERR_SOCKET",
+        "message": "other side closed"
+      }
+    }
+  ],
+  "waves": [],
+  "clockGaps": [],
+  "faultInjection": {
+    "enabled": true,
+    "clientError": "fault response drop: fetch failed; cause: UND_ERR_SOCKET other side closed",
+    "afterDropRaw": "0",
+    "upstreamResponseBody": "{\"code\":400,\"msg\":\"10.88.2.1发送频率过快\"}",
+    "rowsAfterDrop": ""
+  },
+  "phases": [],
+  "checks": [
+    {
+      "description": "same-IP limit accepted first and rejected immediate second message",
+      "status": "passed",
+      "messages": 1,
+      "trackedSockets": 6,
+      "openSockets": 6,
+      "closingSockets": 0,
+      "at": "2026-10-21T12:11:16.823Z"
+    }
+  ],
+  "issues": [
+    "rate-limit: AssertionError [ERR_ASSERTION]: response drop should still leave one saved message\n\n0 !== 1\n\n    at runFaultInjection (file:///Users/diannao/goflylivechat/tests/load/run.mjs:182:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///Users/diannao/goflylivechat/tests/load/run.mjs:342:23"
+  ],
+  "phaseFailures": {
+    "rate-limit": 1
+  },
+  "resources": [
+    {
+      "at": "2026-10-21T12:11:18.314Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "60.9kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:18.314Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "1.89%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.14%",
+      "MemUsage": "87.73MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T12:11:18.816Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "60.9kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:18.817Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "1.89%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.14%",
+      "MemUsage": "87.73MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T12:11:19.313Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "61.1kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:19.313Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.10%",
+      "MemUsage": "87.55MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T12:11:19.813Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "61.1kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:19.813Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.10%",
+      "MemUsage": "87.55MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T12:11:20.314Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "61.1kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:20.314Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.09%",
+      "MemUsage": "87.51MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T12:11:20.813Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021121046272-475571-app",
+      "ID": "12e89a6d2685",
+      "MemPerc": "2.50%",
+      "MemUsage": "12.81MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-app",
+      "NetIO": "61.1kB / 40.3kB",
+      "PIDs": "12"
+    },
+    {
+      "at": "2026-10-21T12:11:20.813Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.35MB / 45.5MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021121046272-475571-db",
+      "ID": "8dbb60804337",
+      "MemPerc": "17.09%",
+      "MemUsage": "87.51MiB / 512MiB",
+      "Name": "gofly-load-20261021121046272-475571-db",
+      "NetIO": "25.5kB / 45.1kB",
+      "PIDs": "17"
+    }
+  ],
+  "requests": {
+    "login": {
+      "count": 5,
+      "errors": 0,
+      "p50": 181.35,
+      "p95": 184.71,
+      "p99": 184.71
+    },
+    "POST /2/message": {
+      "count": 1,
+      "errors": 0,
+      "p50": 17.64,
+      "p95": 17.64,
+      "p99": 17.64
+    },
+    "GET /message_unread": {
+      "count": 6,
+      "errors": 0,
+      "p50": 8.33,
+      "p95": 8.61,
+      "p99": 8.61
+    },
+    "expected rate-limit rejection": {
+      "count": 1,
+      "errors": 0,
+      "p50": 18.16,
+      "p95": 18.16,
+      "p99": 18.16
+    },
+    "POST /message_status": {
+      "count": 1,
+      "errors": 0,
+      "p50": 15.66,
+      "p95": 15.66,
+      "p99": 15.66
+    },
+    "fault response drop": {
+      "count": 1,
+      "errors": 1,
+      "p50": 11.09,
+      "p95": 11.09,
+      "p99": 11.09
+    }
+  },
+  "unexpectedCloses": 0,
+  "source": {
+    "head": "9cd865181e7f0e093314157b9ee4a2e9e02cc74d",
+    "workingCodeDiffSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "imageId": "sha256:cdfdae5bf75a7ee5bf8bca327e4cedeb11fa36be08f5ef9324cf5f76f3dd6446"
+  },
+  "host": {
+    "cpus": 8,
+    "memoryBytes": 8319770624,
+    "docker": "29.8.0"
+  },
+  "fatalError": "response drop should still leave one saved message\n\n0 !== 1\n",
+  "finishedAt": "2026-10-21T12:11:21.181Z",
+  "failures": 1,
+  "closes": [
+    {
+      "label": "agent:a4",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    },
+    {
+      "label": "agent:a1",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    },
+    {
+      "label": "agent:a3",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    },
+    {
+      "label": "agent:a2",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    },
+    {
+      "label": "agent:a0",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    },
+    {
+      "label": "visitor:load_visitor_0",
+      "planned": true,
+      "code": 1005,
+      "phase": "rate-limit"
+    }
+  ],
+  "messageLatencyMs": {
+    "samples": 0,
+    "p50": null,
+    "p95": null,
+    "p99": null,
+    "max": null
+  },
+  "containerState": {
+    "oomKilled": false,
+    "restartCount": 0
+  }
+}

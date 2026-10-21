@@ -456,3 +456,22 @@ func TestConcurrentTransfersKeepDatabaseLiveRouteAndEventsInOrder(t *testing.T) 
 		}
 	}
 }
+
+func TestMessageClientIDIsIdempotent(t *testing.T) {
+	f := newTransferFixture(t)
+	values := url.Values{
+		"from_id":           {f.visitor.VisitorId},
+		"to_id":             {f.from.Name},
+		"content":           {"retry-safe"},
+		"type":              {"visitor"},
+		"client_message_id": {"retry-key-" + tools.Uuid()},
+	}
+	first := f.request(t, "POST", "/2/message", "", values)
+	second := f.request(t, "POST", "/2/message", "", values)
+	if first.Code != 200 || second.Code != 200 || first.Result.MessageID == 0 || first.Result.MessageID != second.Result.MessageID {
+		t.Fatalf("idempotent send: first=%+v second=%+v", first, second)
+	}
+	if got := models.CountMessage("visitor_id=? AND client_message_id=?", f.visitor.VisitorId, values.Get("client_message_id")); got != 1 {
+		t.Fatalf("saved message count=%d, want 1", got)
+	}
+}

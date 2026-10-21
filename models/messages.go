@@ -3,15 +3,18 @@ package models
 import (
 	"fmt"
 	"time"
+
+	"github.com/jinzhu/gorm"
 )
 
 type Message struct {
 	Model
-	KefuId    string `json:"kefu_id"`
-	VisitorId string `json:"visitor_id"`
-	Content   string `json:"content"`
-	MesType   string `json:"mes_type"`
-	Status    string `json:"status"`
+	KefuId          string  `json:"kefu_id"`
+	VisitorId       string  `json:"visitor_id"`
+	Content         string  `json:"content"`
+	MesType         string  `json:"mes_type"`
+	Status          string  `json:"status"`
+	ClientMessageID *string `json:"-" gorm:"column:client_message_id"`
 }
 type MessageKefu struct {
 	Model
@@ -27,18 +30,48 @@ type MessageKefu struct {
 	CreateTime    string `json:"create_time"`
 }
 
-func CreateMessage(kefu_id string, visitor_id string, content string, mes_type string) (uint, error) {
-	v := &Message{
-		KefuId:    kefu_id,
-		VisitorId: visitor_id,
-		Content:   content,
-		MesType:   mes_type,
-		Status:    "unread",
+func CreateMessage(kefuID string, visitorID string, content string, mesType string, clientMessageID ...string) (uint, error) {
+	var key *string
+	if len(clientMessageID) > 0 && clientMessageID[0] != "" {
+		value := clientMessageID[0]
+		key = &value
+		var existing Message
+		err := DB.Where("client_message_id=?", value).First(&existing).Error
+		if err == nil {
+			if existing.KefuId != kefuID || existing.VisitorId != visitorID || existing.MesType != mesType {
+				return 0, fmt.Errorf("client message id belongs to another conversation")
+			}
+			return existing.ID, nil
+		}
+		if err != gorm.ErrRecordNotFound {
+			return 0, err
+		}
 	}
+	v := &Message{KefuId: kefuID, VisitorId: visitorID, Content: content, MesType: mesType, Status: "unread", ClientMessageID: key}
 	v.UpdatedAt = time.Now()
-	err := DB.Create(v).Error
-	return v.ID, err
+	if err := DB.Create(v).Error; err != nil {
+		if key != nil {
+			var existing Message
+			if lookupErr := DB.Where("client_message_id=?", *key).First(&existing).Error; lookupErr == nil {
+				return existing.ID, nil
+			}
+		}
+		return 0, err
+	}
+	return v.ID, nil
 }
+func FindMessageByClientID(clientMessageID string) (Message, bool, error) {
+	if clientMessageID == "" {
+		return Message{}, false, nil
+	}
+	var message Message
+	err := DB.Where("client_message_id=?", clientMessageID).First(&message).Error
+	if err == gorm.ErrRecordNotFound {
+		return Message{}, false, nil
+	}
+	return message, err == nil, err
+}
+
 func FindMessageByVisitorId(visitor_id string) []Message {
 	var messages []Message
 	DB.Where("visitor_id=?", visitor_id).Order("id asc").Find(&messages)

@@ -16,23 +16,27 @@ import (
 	"time"
 )
 
+func messageIdempotencyKey(c *gin.Context) string {
+	key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	if key == "" {
+		key = strings.TrimSpace(c.PostForm("client_message_id"))
+	}
+	if len([]rune(key)) > 100 {
+		return ""
+	}
+	return key
+}
+
 func SendMessageV2(c *gin.Context) {
 	fromId := c.PostForm("from_id")
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
 	cType := c.PostForm("type")
+	clientMessageID := messageIdempotencyKey(c)
 	if content == "" || len([]rune(content)) > 2048 {
 		c.JSON(200, gin.H{
 			"code": 400,
 			"msg":  "内容不能为空或超过 2048 个字符",
-		})
-		return
-	}
-	//限流
-	if !tools.LimitFreqSingle("sendmessage:"+c.ClientIP(), 1, 2) {
-		c.JSON(200, gin.H{
-			"code": 400,
-			"msg":  c.ClientIP() + "发送频率过快",
 		})
 		return
 	}
@@ -57,7 +61,23 @@ func SendMessageV2(c *gin.Context) {
 		return
 	}
 
-	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType)
+	if existing, found, err := models.FindMessageByClientID(clientMessageID); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "消息查询失败，请重试"})
+		return
+	} else if found {
+		if existing.KefuId != kefuInfo.Name || existing.VisitorId != vistorInfo.VisitorId || existing.MesType != cType {
+			c.JSON(200, gin.H{"code": 409, "msg": "消息幂等键已被其他会话使用"})
+			return
+		}
+		c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"message_id": existing.ID}})
+		return
+	}
+	//限流
+	if !tools.LimitFreqSingle("sendmessage:"+c.ClientIP(), 1, 2) {
+		c.JSON(200, gin.H{"code": 400, "msg": c.ClientIP() + "发送频率过快"})
+		return
+	}
+	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, cType, clientMessageID)
 	if err != nil {
 		c.JSON(200, gin.H{"code": 500, "msg": "消息保存失败，请重试"})
 		return
@@ -111,18 +131,11 @@ func SendKefuMessage(c *gin.Context) {
 	fromId, _ := c.Get("kefu_name")
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
+	clientMessageID := messageIdempotencyKey(c)
 	if content == "" || len([]rune(content)) > 2048 {
 		c.JSON(200, gin.H{
 			"code": 400,
 			"msg":  "内容不能为空或超过 2048 个字符",
-		})
-		return
-	}
-	//限流
-	if !tools.LimitFreqSingle("sendmessage:"+c.ClientIP(), 1, 2) {
-		c.JSON(200, gin.H{
-			"code": 400,
-			"msg":  c.ClientIP() + "发送频率过快",
 		})
 		return
 	}
@@ -139,7 +152,22 @@ func SendKefuMessage(c *gin.Context) {
 		return
 	}
 
-	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, "kefu")
+	if existing, found, err := models.FindMessageByClientID(clientMessageID); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "消息查询失败，请重试"})
+		return
+	} else if found {
+		if existing.KefuId != kefuInfo.Name || existing.VisitorId != vistorInfo.VisitorId || existing.MesType != "kefu" {
+			c.JSON(200, gin.H{"code": 409, "msg": "消息幂等键已被其他会话使用"})
+			return
+		}
+		c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"message_id": existing.ID}})
+		return
+	}
+	if !tools.LimitFreqSingle("sendmessage:"+c.ClientIP(), 1, 2) {
+		c.JSON(200, gin.H{"code": 400, "msg": c.ClientIP() + "发送频率过快"})
+		return
+	}
+	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, "kefu", clientMessageID)
 	if err != nil {
 		c.JSON(200, gin.H{"code": 500, "msg": "消息保存失败，请重试"})
 		return

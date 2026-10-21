@@ -585,12 +585,14 @@
                 if(this.hasNewer || !this.listAtBottom){this.showLatestMessages();}
                 this.sendDisabled=true;
                 let _this=this;
+                let clientMessageId = Date.now() + '-' + Math.random().toString(36).slice(2);
                 let mes = {};
                 mes.type = "kefu";
                 mes.content = this.messageContent;
                 mes.from_id = this.kfConfig.id;
                 mes.to_id = this.currentGuest;
                 mes.content = this.messageContent;
+                mes.client_message_id = clientMessageId;
                 $.ajax({
                     url:"/kefu/message",
                     type:"post",
@@ -765,7 +767,7 @@
             chatIsVisible(){
                 return !document.hidden && (!window.frameElement || window.frameElement.style.display!="none");
             },
-            markMessagesRead(visitorId,lastMessageId){
+            markMessagesRead(visitorId,lastMessageId,attempt=0){
                 if(!lastMessageId || visitorId!=this.currentGuest || !this.chatIsVisible()){ return; }
                 $.ajax({
                     type:"post",
@@ -779,7 +781,13 @@
                         }
                         this.getUnreadMessages();
                     },
-                    error:()=>{ this.$message({message:"更新已读消息失败，请重试",type:'error'}); }
+                    error:()=>{
+                        if(attempt<2){
+                            setTimeout(()=>this.markMessagesRead(visitorId,lastMessageId,attempt+1),250*(attempt+1));
+                            return;
+                        }
+                        this.$message({message:"更新已读消息失败，请重试",type:'error'});
+                    }
                 });
             },
             readCurrentMessages(){

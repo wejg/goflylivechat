@@ -259,7 +259,9 @@
                 this.sendDisabled=true;
                 let _this=this;
 
+                let clientMessageId = Date.now() + '-' + Math.random().toString(36).slice(2);
                 let content = {}
+                content.client_message_id = clientMessageId;
                 content.avator=_this.visitor.avator;
                 content.content = replaceContent(_this.messageContent);
                 content.name = _this.visitor.name;
@@ -274,6 +276,7 @@
                 let mes = {};
                 mes.type = "visitor";
                 mes.content = this.messageContent;
+                mes.client_message_id = clientMessageId;
                 mes.from_id = this.visitor.visitor_id;
                 mes.to_id = this.visitor.to_id;
                 mes.content = this.messageContent;

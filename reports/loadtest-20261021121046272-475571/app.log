@@ -1,0 +1,12 @@
+2026/10/21 12:11:16 migrate applied: visitor.status 增加索引
+2026/10/21 12:11:16 Starting server...
+URL: http://0.0.0.0:8081
+2026/10/21 12:11:16 cleanLimitQueue start...
+2026/10/21 12:11:16 cleanVisitorExpire start...
+2026/10/21 12:11:21 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:11:21 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:11:21 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:11:21 删除用户 load_visitor_0
+2026/10/21 12:11:21 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:11:21 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:11:21 websocket: close 1005 (no status)

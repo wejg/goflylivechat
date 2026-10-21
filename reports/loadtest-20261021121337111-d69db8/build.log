@@ -1,0 +1,76 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 761B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for m.daocloud.io/docker.io/library/alpine:3.22
+#2 DONE 0.1s
+
+#3 [internal] load metadata for m.daocloud.io/docker.io/library/golang:1.25-alpine
+#3 DONE 0.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 131B done
+#4 DONE 0.0s
+
+#5 [stage-1 1/8] FROM m.daocloud.io/docker.io/library/alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+#5 resolve m.daocloud.io/docker.io/library/alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 0.0s done
+#5 DONE 0.0s
+
+#6 [build 1/6] FROM m.daocloud.io/docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#6 resolve m.daocloud.io/docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 71.83kB 0.0s done
+#7 DONE 0.0s
+
+#8 [build 2/6] WORKDIR /src
+#8 CACHED
+
+#9 [build 3/6] COPY go.mod go.sum ./
+#9 CACHED
+
+#10 [build 4/6] RUN go mod download
+#10 CACHED
+
+#11 [build 5/6] COPY . .
+#11 DONE 0.3s
+
+#12 [build 6/6] RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gofly .
+#12 DONE 13.1s
+
+#13 [stage-1 2/8] RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories     && apk add --no-cache ca-certificates tzdata
+#13 CACHED
+
+#14 [stage-1 4/8] COPY --from=build /out/gofly ./gofly
+#14 CACHED
+
+#15 [stage-1 6/8] COPY --from=build /src/config/GeoLite2-City.mmdb ./config/GeoLite2-City.mmdb
+#15 CACHED
+
+#16 [stage-1 7/8] COPY --from=build /src/import.sql ./import.sql
+#16 CACHED
+
+#17 [stage-1 3/8] WORKDIR /app
+#17 CACHED
+
+#18 [stage-1 5/8] COPY --from=build /src/static ./static
+#18 CACHED
+
+#19 [stage-1 8/8] RUN mkdir -p /app/static/upload /data
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 exporting manifest sha256:8acdc1acd1fa56abb3e0b3f36f6079a852968d4512ab4795af639baee16b781d done
+#20 exporting config sha256:67228bb9578da899bb893d0cdcfd58e72cab54f4fad9053d822678b14ed1a319 done
+#20 exporting attestation manifest sha256:364e685412ccaddc93d64ac744bf2cfe9ac8fd518c8bd13ed8a93ddd8127547b
+#20 exporting attestation manifest sha256:364e685412ccaddc93d64ac744bf2cfe9ac8fd518c8bd13ed8a93ddd8127547b 0.0s done
+#20 exporting manifest list sha256:715151cfde93e3c328dffe32835cfc5d6d3eabad8e8c673e7221d00bcf4ff8b0 done
+#20 naming to docker.io/library/gofly-loadtest:20261021121337111-d69db8 done
+#20 unpacking to docker.io/library/gofly-loadtest:20261021121337111-d69db8 done
+#20 DONE 0.1s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/xzua2feafbsbsvs4556tqkrin

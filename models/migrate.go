@@ -20,6 +20,16 @@ type migration struct {
 func migrations() []migration {
 	return []migration{
 		{
+			name:    "message 增加客户端幂等键",
+			applied: func() bool { return hasColumn("message", "client_message_id") },
+			stmt:    "ALTER TABLE `message` ADD COLUMN `client_message_id` varchar(100) NULL",
+		},
+		{
+			name:    "message 增加客户端幂等唯一索引",
+			applied: func() bool { return hasIndex("message", "uniq_message_client_id") },
+			stmt:    "ALTER TABLE `message` ADD UNIQUE INDEX `uniq_message_client_id` (`client_message_id`)",
+		},
+		{
 			name:    "message 增加未读查询索引",
 			applied: func() bool { return hasIndex("message", "idx_visitor_unread") },
 			stmt:    "ALTER TABLE `message` ADD INDEX `idx_visitor_unread` (`visitor_id`,`mes_type`,`status`,`id`)",
@@ -90,6 +100,12 @@ func hasTable(table string) bool {
 	var count int
 	DB.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?",
 		table).Row().Scan(&count)
+	return count > 0
+}
+
+func hasColumn(table, column string) bool {
+	var count int
+	DB.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?", table, column).Row().Scan(&count)
 	return count > 0
 }
 

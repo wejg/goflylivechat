@@ -1,13 +1,25 @@
 // Node.js 22+; starts disposable Docker containers and never targets the existing app/database.
 import assert from 'node:assert/strict';
 import { execFile, spawn } from 'node:child_process';
+import { createServer, request as httpRequest } from 'node:http';
 import { randomBytes, createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { resolve } from 'node:path';
 
 const duration = Number(process.env.LOADTEST_SECONDS || 600);
+const visitorCount = Number(process.env.LOADTEST_VISITORS || 100);
+const agentCount = Number(process.env.LOADTEST_AGENTS || 5);
+const connectBatch = Number(process.env.LOADTEST_CONNECT_BATCH || 0);
+const connectDelayMs = Number(process.env.LOADTEST_CONNECT_DELAY_MS || 0);
+const memoryMiB = Number(process.env.LOADTEST_MEMORY_MIB || 512);
 assert(Number.isInteger(duration) && duration >= 5 && duration <= 3600);
+assert(Number.isInteger(visitorCount) && visitorCount >= 10 && visitorCount <= 2000);
+assert(Number.isInteger(agentCount) && agentCount >= 1 && agentCount <= visitorCount);
+assert(Number.isInteger(connectBatch) && connectBatch >= 0 && connectBatch <= visitorCount);
+assert(Number.isInteger(connectDelayMs) && connectDelayMs >= 0 && connectDelayMs <= 10000);
+assert(Number.isInteger(memoryMiB) && memoryMiB >= 256 && memoryMiB <= 8192);
 const runId = new Date().toISOString().replace(/[-:.TZ]/g, '') + '-' + randomBytes(3).toString('hex');
 const prefix = `gofly-load-${runId}`;
 const names = { app: `${prefix}-app`, db: `${prefix}-db`, network: prefix, image: `gofly-loadtest:${runId}` };
@@ -16,16 +28,18 @@ await mkdir(output, { recursive: true });
 const password = randomBytes(24).toString('hex');
 const secret = randomBytes(32).toString('hex');
 const env = { ...process.env, MARIADB_ROOT_PASSWORD: password, GOFLY_DB_PASSWORD: password, GOFLY_JWT_SECRET: secret };
+const faultEnabled = process.env.LOADTEST_FAULT_TEST === '1';
+const limitBoundaryEnabled = process.env.LOADTEST_LIMIT_BOUNDARY === '1';
 const report = {
     runId, startedAt: new Date().toISOString(), status: 'running',
-    config: { visitors: 100, agents: 5, seconds: duration, intervalSeconds: 5, appCPU: 2, dbCPU: 2, memoryMiBEach: 512,
+    config: { visitors: visitorCount, agents: agentCount, seconds: duration, intervalSeconds: 5, appCPU: 2, dbCPU: 2, memoryMiBEach: memoryMiB,
         pacing: 'five seconds after each completed wave; no catch-up',
         sourceIPs: 'distinct X-Forwarded-For per virtual client; only the isolated network gateway is trusted; business rate limiter unchanged' },
-    requestErrors: [], waves: [], clockGaps: [], phases: [], checks: [], issues: [], phaseFailures: {}, resources: [], requests: {}, unexpectedCloses: 0,
+    requestErrors: [], waves: [], clockGaps: [], faultInjection: faultEnabled ? { enabled: true } : { enabled: false }, limitBoundary: limitBoundaryEnabled ? { enabled: true } : { enabled: false }, phases: [], checks: [], issues: [], phaseFailures: {}, resources: [], requests: {}, unexpectedCloses: 0,
 };
 const sockets = new Set(), records = [], recordsByContent = new Map(), background = new Set(), horizons = new Map();
 const latencies = [], closes = [], created = new Set();
-let base, agents = [], visitors = [], phase = 'setup', stats, clockMonitor, stopping = false, heartbeat;
+let base, faultBase, faultProxy, faultProxyResponse, agents = [], visitors = [], phase = 'setup', stats, clockMonitor, stopping = false, heartbeat;
 let failures = 0, interrupted = false, cleaning = false, nextWaveAt = 0;
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
     interrupted = true;
@@ -52,16 +66,16 @@ async function waitFor(fn, description, timeout = 30000) {
     while (Date.now() < until) { if (interrupted) throw new Error("Load test interrupted"); if (await fn()) return; await sleep(100); }
     throw new Error(`Timed out: ${description}`);
 }
-async function api(endpoint, { agent, ip, data, token, expectedCode = 200, metric } = {}) {
+async function api(endpoint, { agent, ip, data, token, expectedCode = 200, metric, fault = false } = {}) {
     const started = performance.now();
     const key = metric || `${data ? 'POST' : 'GET'} ${endpoint.split('?')[0]}`;
     const group = report.requests[key] ||= { count: 0, errors: 0, ms: [] };
     group.count++;
     let httpStatus, businessCode, responseMessage;
     try {
-        const response = await fetch(base + endpoint, {
+        const response = await fetch((fault ? faultBase : base) + endpoint, {
             method: data ? 'POST' : 'GET',
-            headers: { 'X-Forwarded-For': ip || agent?.ip || '10.250.0.1', ...(token || agent?.token ? { token: token || agent.token } : {}) },
+            headers: { 'X-Forwarded-For': ip || agent?.ip || '10.250.0.1', ...(fault ? { 'X-Loadtest-Drop-Response': '1' } : {}), ...(token || agent?.token ? { token: token || agent.token } : {}) },
             body: data ? new URLSearchParams(data) : undefined,
             signal: AbortSignal.timeout(10000),
         });
@@ -140,6 +154,15 @@ async function connect(client, kind) {
     sockets.add(socket);
     socket.send(JSON.stringify({ type: 'ping', data: kind === 'visitor' ? 'visitor:' + client.id : '' }));
 }
+
+async function connectMany(clients, kind) {
+    const batchSize = connectBatch || clients.length;
+    for (let offset = 0; offset < clients.length; offset += batchSize) {
+        await Promise.all(clients.slice(offset, offset + batchSize).map(client => connect(client, kind)));
+        if (connectDelayMs && offset + batchSize < clients.length) await sleep(connectDelayMs);
+    }
+}
+
 async function closeClient(client) {
     if (!client.socket || client.socket.readyState === WebSocket.CLOSED) return;
     client.socket.plannedClose = true;
@@ -152,26 +175,93 @@ async function closeClient(client) {
         failures++; // Detailed close failures have their own array, preserving room for request errors.
     }
 }
+
+
+async function runLimitBoundary(visitor) {
+    const content = `LT:${runId}:${visitor.id}:limit-boundary:accepted:` + 'b'.repeat(128);
+    const key = `${runId}:${visitor.id}:limit-boundary`;
+    await sleep(500);
+    const blocked = await api('/2/message', { ip: visitor.ip, expectedCode: 400, metric: 'limit boundary blocked', data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content: content + ':blocked' } });
+    assert.match(blocked.msg, /发送频率过快/);
+    await sleep(3500);
+    const accepted = await api('/2/message', { ip: visitor.ip, metric: 'limit boundary accepted', data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content, client_message_id: key } });
+    const row = (await sql(`SELECT id,content FROM message WHERE content='${content}';`)).split('\t');
+    assert.equal(Number(row[0]) > 0, true);
+    const synthetic = { content, visitor, kind: 'visitor', id: Number(row[0]), accepted: true, deliveries: {}, receivedIds: [], expected: [] };
+    records.push(synthetic); recordsByContent.set(content, synthetic);
+    await acknowledge(visitor, synthetic.id);
+    report.limitBoundary = { enabled: true, rejectedAfter500ms: true, acceptedAfter4000ms: true, messageId: accepted.message_id };
+}
+
+async function runFaultInjection(visitor) {
+    const content = `LT:${runId}:${visitor.id}:fault:response-drop:` + 'f'.repeat(128);
+    const prefix = `LT:${runId}:${visitor.id}:fault:response-drop:`;
+    const key = `${runId}:${visitor.id}:fault`;
+    const beforeRaw = await sql(`SELECT COUNT(*) FROM message WHERE content LIKE '${prefix}%';`);
+    const before = Number(beforeRaw);
+    let dropped = false;
+    await sleep(4100);
+    try {
+        await api('/2/message', { ip: visitor.ip, fault: true, metric: 'fault response drop', data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content, client_message_id: key } });
+    } catch (error) {
+        dropped = true;
+        report.faultInjection.clientError = error.message;
+    }
+    await sleep(500);
+    const afterDropRaw = await sql(`SELECT COUNT(*) FROM message WHERE content LIKE '${prefix}%';`);
+    const afterDrop = Number(afterDropRaw);
+    report.faultInjection.afterDropRaw = afterDropRaw;
+    report.faultInjection.upstreamResponseBody = faultProxyResponse;
+    report.faultInjection.rowsAfterDrop = await sql(`SELECT id,content FROM message WHERE content LIKE '${prefix}%';`);
+    assert.equal(before, 0, 'fault probe content already exists');
+    assert.equal(afterDrop, 1, 'response drop should still leave one saved message');
+    assert(dropped, 'response drop must be visible to the client');
+    await sleep(4100);
+    const retry = await api('/2/message', { ip: visitor.ip, metric: 'fault retry', data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content, client_message_id: key } });
+    assert(Number.isInteger(retry.message_id) && retry.message_id > 0);
+    const afterRetry = Number(await sql(`SELECT COUNT(*) FROM message WHERE content LIKE '${prefix}%';`));
+    const maxFaultId = Number(await sql(`SELECT COALESCE(MAX(id),0) FROM message WHERE content LIKE '${prefix}%';`));
+    const faultRows = (await sql(`SELECT id,content FROM message WHERE content LIKE '${prefix}%' ORDER BY id;`)).split('\n').filter(Boolean);
+    for (const line of faultRows) {
+        const [id, savedContent] = line.split('\t');
+        const synthetic = { content: savedContent, visitor, kind: 'visitor', id: Number(id), accepted: true, deliveries: {}, receivedIds: [], expected: [] };
+        records.push(synthetic); recordsByContent.set(savedContent, synthetic);
+    }
+    await acknowledge(visitor, maxFaultId);
+    report.faultInjection = { enabled: true, clientObservedError: dropped, savedAfterDroppedResponse: afterDrop, savedAfterRetry: afterRetry, duplicateOnBlindRetry: afterRetry !== 1 };
+    assert.equal(afterRetry, 1, 'idempotent retry must not duplicate the saved message');
+}
+
 async function login(agent) {
     const result = await api('/check', { ip: agent.ip, data: { username: agent.name, password }, metric: 'login' });
     agent.token = result.token;
 }
 async function send(visitor, kind, sequence) {
     const content = `LT:${runId}:${visitor.id}:${kind}:${sequence}:` + 'x'.repeat(128);
-    const record = { content, visitor, kind, phase, started: performance.now(), accepted: false, deliveries: {}, receivedIds: [],
+    const record = { content, visitor, kind, phase, started: performance.now(), clientMessageID: `${runId}:${visitor.id}:${kind}:${sequence}`, accepted: false, deliveries: {}, receivedIds: [],
         expected: kind === 'visitor' ? [`agent:${visitor.agent.id}`] : [`agent:${visitor.agent.id}`, `visitor:${visitor.id}`] };
     records.push(record); recordsByContent.set(content, record);
     const result = kind === 'visitor'
-        ? await api('/2/message', { ip: visitor.ip, data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content } })
-        : await api('/kefu/message', { agent: visitor.agent, data: { type: 'kefu', to_id: visitor.id, content } });
+        ? await api('/2/message', { ip: visitor.ip, data: { type: 'visitor', from_id: visitor.id, to_id: visitor.agent.name, content, client_message_id: record.clientMessageID } })
+        : await api('/kefu/message', { agent: visitor.agent, data: { type: 'kefu', to_id: visitor.id, content, client_message_id: record.clientMessageID } });
     assert(Number.isInteger(result.message_id) && result.message_id > 0, 'successful message response must include its saved ID');
     record.id = result.message_id; record.accepted = true;
     return record;
 }
 async function acknowledge(visitor, id) {
     if (!id) return;
-    await api('/message_status', { agent: visitor.agent, data: { visitor_id: visitor.id, last_message_id: String(id) } });
-    horizons.set(visitor.id, Math.max(id, horizons.get(visitor.id) || 0));
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            await api('/message_status', { agent: visitor.agent, data: { visitor_id: visitor.id, last_message_id: String(id) } });
+            horizons.set(visitor.id, Math.max(id, horizons.get(visitor.id) || 0));
+            return;
+        } catch (error) {
+            lastError = error;
+            if (attempt < 2) await sleep(250 * (attempt + 1));
+        }
+    }
+    throw lastError;
 }
 async function drain() {
     await waitFor(() => records.every(r => !r.accepted || r.expected.every(label => r.deliveries[label] === 1)), 'all saved messages delivered', 10000);
@@ -233,17 +323,17 @@ try {
     report.source.imageId = await docker(['image', 'inspect', names.image, '--format', '{{.Id}}']);
     await docker(['network', 'create', names.network]); created.add('network');
     const gateway = JSON.parse(await docker(['network', 'inspect', names.network]))[0].IPAM.Config[0].Gateway;
-    await docker(['run', '-d', '--name', names.db, '--network', names.network, '--network-alias', 'db', '--cpus=2', '--memory=512m',
+    await docker(['run', '-d', '--name', names.db, '--network', names.network, '--network-alias', 'db', '--cpus=2', `--memory=${memoryMiB}m`,
         '-e', 'MARIADB_ROOT_PASSWORD', '-e', 'MARIADB_DATABASE=gofly_loadtest', 'm.daocloud.io/docker.io/library/mariadb:10.11']);
     created.add('db');
     await waitFor(async () => { try { await sql('SELECT 1;'); return true; } catch { return false; } }, 'isolated MariaDB ready', 60000);
     await sql(await readFile('import.sql', 'utf8'));
-    agents = Array.from({ length: 5 }, (_, i) => ({ id: `a${i}`, name: `load_agent_${i}`, ip: `10.88.1.${i + 1}` }));
-    visitors = Array.from({ length: 100 }, (_, i) => ({ id: `load_visitor_${i}`, ip: `10.88.2.${i + 1}`, agent: agents[i % 5] }));
+    agents = Array.from({ length: agentCount }, (_, i) => ({ id: `a${i}`, name: `load_agent_${i}`, ip: `10.88.1.${i + 1}` }));
+    visitors = Array.from({ length: visitorCount }, (_, i) => ({ id: `load_visitor_${i}`, ip: `10.88.${2 + Math.floor(i / 250)}.${(i % 250) + 1}`, agent: agents[i % agentCount] }));
     const hash = createHash('md5').update(password).digest('hex');
     await sql(agents.map(a => `INSERT INTO user (name,password,nickname,avator) VALUES ('${a.name}','${hash}','${a.name}','/static/images/4.jpg');`).join('\n') + '\n' +
         visitors.map(v => `INSERT INTO visitor (name,visitor_id,to_id,status,avator,client_ip) VALUES ('${v.id}','${v.id}','${v.agent.name}',0,'/static/images/2.png','${v.ip}');`).join('\n'));
-    await docker(['run', '-d', '--name', names.app, '--network', names.network, '--cpus=2', '--memory=512m', '-p', '127.0.0.1::8081',
+    await docker(['run', '-d', '--name', names.app, '--network', names.network, '--cpus=2', `--memory=${memoryMiB}m`, '-p', '127.0.0.1::8081',
         '-e', 'GOFLY_DB_SERVER=db', '-e', 'GOFLY_DB_PORT=3306', '-e', 'GOFLY_DB_DATABASE=gofly_loadtest', '-e', 'GOFLY_DB_USERNAME=root',
         '-e', 'GOFLY_DB_PASSWORD', '-e', 'GOFLY_JWT_SECRET', '-e', `GOFLY_TRUSTED_PROXIES=${gateway}`, names.image, 'server']);
     created.add('app');
@@ -251,7 +341,29 @@ try {
     base = `http://127.0.0.1:${port}`;
     await waitFor(async () => { try { return (await fetch(base + '/login', { signal: AbortSignal.timeout(1000) })).ok; } catch { return false; } }, 'isolated app ready');
     report.config.baseURL = base;
-    await Promise.all(agents.map(async a => { await login(a); await connect(a, 'agent'); }));
+    if (faultEnabled) {
+        const target = new URL(base);
+        faultProxy = createServer((req, res) => {
+            const upstream = httpRequest({ hostname: target.hostname, port: target.port, path: req.url, method: req.method, headers: { ...req.headers, host: target.host } }, upstreamRes => {
+                if (req.headers['x-loadtest-drop-response'] === '1') {
+                    const chunks = [];
+                    upstreamRes.on('data', chunk => chunks.push(chunk));
+                    upstreamRes.on('end', () => { const raw = Buffer.concat(chunks);
+                        try { faultProxyResponse = gunzipSync(raw).toString(); } catch { faultProxyResponse = raw.toString(); }
+                        res.destroy(); });
+                    return;
+                }
+                res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
+                upstreamRes.pipe(res);
+            });
+            upstream.on('error', error => res.destroy(error));
+            req.pipe(upstream);
+        });
+        await new Promise(resolveProxy => faultProxy.listen(0, '127.0.0.1', resolveProxy));
+        faultBase = `http://127.0.0.1:${faultProxy.address().port}`;
+    }
+    await Promise.all(agents.map(async a => { await login(a); }));
+    await connectMany(agents, 'agent');
     heartbeat = setInterval(() => {
         for (const a of agents) if (a.socket?.readyState === WebSocket.OPEN) a.socket.send(JSON.stringify({ type: 'ping', data: '' }));
         for (const v of visitors) if (v.socket?.readyState === WebSocket.OPEN) v.socket.send(JSON.stringify({ type: 'ping', data: 'visitor:' + v.id }));
@@ -282,14 +394,16 @@ try {
     const blocked = await api('/2/message', { ip: v.ip, expectedCode: 400, metric: 'expected rate-limit rejection', data: { type: 'visitor', from_id: v.id, to_id: v.agent.name, content: 'blocked rate-limit probe' } });
     assert.match(blocked.msg, /发送频率过快/);
     await acknowledge(v, first.id); await verify('same-IP limit accepted first and rejected immediate second message');
+    if (limitBoundaryEnabled) await runLimitBoundary(v);
+    if (faultEnabled) await runFaultInjection(v);
     await sleep(3100);
     let sequence = 0;
-    for (const [count, seconds, name] of [[10, 10, 'warmup-10'], [50, 10, 'warmup-50'], [100, duration, 'steady']]) {
+    for (const [count, seconds, name] of [[Math.min(10, visitorCount), 10, 'warmup-10'], [Math.min(50, visitorCount), 10, 'warmup-50'], [visitorCount, duration, 'steady']]) {
         phase = name;
-        await Promise.all(visitors.slice(0, count).filter(v => !v.socket).map(v => connect(v, 'visitor')));
-        assert.equal(sockets.size, count + 5, 'connection count');
+        await connectMany(visitors.slice(0, count).filter(v => !v.socket), 'visitor');
+        assert.equal(sockets.size, count + agents.length, 'connection count');
         const start = performance.now(), initial = records.length;
-        log(`${name}: ${count} visitors + 5 agents, ${seconds}s`);
+        log(`${name}: ${count} visitors + ${agents.length} agents, ${seconds}s`);
         let round = 0;
         while (round < Math.ceil(seconds / 5) && (round === 0 || performance.now() - start < seconds * 1000)) {
             if (interrupted) throw new Error('Load test interrupted');
@@ -310,7 +424,8 @@ try {
     log('Checking planned reconnect, re-login and unread restoration');
     await Promise.all([agents[0], ...visitors.slice(0, 10)].map(closeClient));
     await login(agents[0]);
-    await Promise.all([connect(agents[0], 'agent'), ...visitors.slice(0, 10).map(v => connect(v, 'visitor'))]);
+    await connectMany([agents[0]], 'agent');
+    await connectMany(visitors.slice(0, 10), 'visitor');
     await verify('planned reconnect and new login retain unread counts');
     await wave(visitors, sequence++);
     await verify('fresh messages delivered after reconnect and re-login');
@@ -323,7 +438,7 @@ try {
     await waitFor(async () => { try { return (await fetch(base + '/login', { signal: AbortSignal.timeout(1000) })).ok; } catch { return false; } }, 'app restarted');
     await waitFor(() => sockets.size === 0, 'old sockets closed after isolated app restart');
     await Promise.all(agents.map(a => connect(a, 'agent')));
-    await Promise.all(visitors.map(v => connect(v, 'visitor')));
+    await connectMany(visitors, 'visitor');
     await verify('app restart retains unread state for every agent');
     await wave(visitors, sequence++);
     await verify('fresh messages delivered after app restart');
@@ -341,8 +456,16 @@ try {
         unread: saved.filter(r => r.kind === 'visitor' && r.id > (horizons.get(r.visitor.id) || 0)).length };
     await writeFile(output + '/database-audit.json', JSON.stringify(rows));
     assert.equal(rows.length, saved.length, 'database message count');
-    assert.equal(new Set(rows.map(r => r.content)).size, rows.length, 'duplicate database messages');
+    const isFaultRow = row => faultEnabled && row.content.startsWith(`LT:${runId}:${visitors[0].id}:fault:response-drop:`);
+    const nonFaultRows = rows.filter(row => !isFaultRow(row));
+    assert.equal(new Set(nonFaultRows.map(r => r.content)).size, nonFaultRows.length, 'duplicate database messages');
     for (const row of rows) {
+        if (isFaultRow(row)) {
+            assert.equal(row.visitorId, visitors[0].id, 'fault row visitor');
+            assert.equal(row.agentId, visitors[0].agent.name, 'fault row owner');
+            assert.equal(row.kind, 'visitor', 'fault row direction');
+            continue;
+        }
         const record = recordsByContent.get(row.content);
         assert(record && record.accepted && row.id === record.id && row.visitorId === record.visitor.id && row.kind === record.kind && row.agentId === record.visitor.agent.name, 'database content/ID/owner mismatch');
         const expectedStatus = row.kind === 'visitor' && row.id <= (horizons.get(row.visitorId) || 0) ? 'read' : 'unread';
@@ -358,7 +481,7 @@ try {
 } catch (error) {
     report.status = interrupted ? 'interrupted' : 'failed'; report.fatalError = error.message; if (report.messageAudit?.status === 'running') report.messageAudit.status = 'failed'; issue(error.stack || error.message); log(`FAILED: ${error.message}`);
 } finally {
-    cleaning = true; stopping = true; clearInterval(heartbeat); clearInterval(clockMonitor); stats?.kill('SIGTERM');
+    cleaning = true; stopping = true; clearInterval(heartbeat); faultProxy?.close(); clearInterval(clockMonitor); stats?.kill('SIGTERM');
     for (const socket of sockets) { socket.plannedClose = true; socket.close(); }
     await writeFile(output + '/message-ledger.json', JSON.stringify(records.map(({ visitor, ...record }) => ({ ...record, visitorId: visitor.id, agentName: visitor.agent.name }))));
     report.finishedAt = new Date().toISOString();

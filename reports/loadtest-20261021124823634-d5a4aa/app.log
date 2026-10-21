@@ -1,0 +1,60 @@
+2026/10/21 12:48:45 migrate applied: visitor.status 增加索引
+2026/10/21 12:48:45 Starting server...
+URL: http://0.0.0.0:8081
+2026/10/21 12:48:45 cleanLimitQueue start...
+2026/10/21 12:48:45 cleanVisitorExpire start...
+2026/10/21 12:49:08 删除用户 load_visitor_10
+2026/10/21 12:49:08 删除用户 load_visitor_24
+2026/10/21 12:49:08 删除用户 load_visitor_13
+2026/10/21 12:49:08 删除用户 load_visitor_12
+2026/10/21 12:49:08 删除用户 load_visitor_22
+2026/10/21 12:49:08 删除用户 load_visitor_11
+2026/10/21 12:49:08 删除用户 load_visitor_14
+2026/10/21 12:49:08 删除用户 load_visitor_26
+2026/10/21 12:49:08 删除用户 load_visitor_25
+2026/10/21 12:49:08 删除用户 load_visitor_49
+2026/10/21 12:49:08 删除用户 load_visitor_39
+2026/10/21 12:49:08 删除用户 load_visitor_47
+2026/10/21 12:49:08 删除用户 load_visitor_45
+2026/10/21 12:49:08 删除用户 load_visitor_7
+2026/10/21 12:49:08 删除用户 load_visitor_37
+2026/10/21 12:49:08 删除用户 load_visitor_21
+2026/10/21 12:49:08 删除用户 load_visitor_48
+2026/10/21 12:49:08 删除用户 load_visitor_19
+2026/10/21 12:49:08 删除用户 load_visitor_42
+2026/10/21 12:49:08 删除用户 load_visitor_8
+2026/10/21 12:49:08 删除用户 load_visitor_36
+2026/10/21 12:49:08 删除用户 load_visitor_6
+2026/10/21 12:49:08 删除用户 load_visitor_44
+2026/10/21 12:49:08 删除用户 load_visitor_35
+2026/10/21 12:49:08 删除用户 load_visitor_4
+2026/10/21 12:49:08 删除用户 load_visitor_27
+2026/10/21 12:49:08 删除用户 load_visitor_2
+2026/10/21 12:49:08 删除用户 load_visitor_43
+2026/10/21 12:49:08 删除用户 load_visitor_17
+2026/10/21 12:49:08 删除用户 load_visitor_18
+2026/10/21 12:49:08 删除用户 load_visitor_32
+2026/10/21 12:49:08 删除用户 load_visitor_46
+2026/10/21 12:49:08 删除用户 load_visitor_41
+2026/10/21 12:49:08 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:49:08 删除用户 load_visitor_23
+2026/10/21 12:49:08 删除用户 load_visitor_29
+2026/10/21 12:49:08 删除用户 load_visitor_40
+2026/10/21 12:49:08 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:49:08 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:49:08 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:49:08 ws/user.go  websocket: close 1005 (no status)
+2026/10/21 12:49:08 删除用户 load_visitor_0
+2026/10/21 12:49:08 删除用户 load_visitor_30
+2026/10/21 12:49:08 删除用户 load_visitor_20
+2026/10/21 12:49:08 删除用户 load_visitor_9
+2026/10/21 12:49:08 删除用户 load_visitor_5
+2026/10/21 12:49:08 删除用户 load_visitor_3
+2026/10/21 12:49:08 删除用户 load_visitor_31
+2026/10/21 12:49:08 删除用户 load_visitor_28
+2026/10/21 12:49:08 删除用户 load_visitor_38
+2026/10/21 12:49:08 删除用户 load_visitor_15
+2026/10/21 12:49:08 删除用户 load_visitor_16
+2026/10/21 12:49:08 删除用户 load_visitor_1
+2026/10/21 12:49:08 删除用户 load_visitor_33
+2026/10/21 12:49:08 删除用户 load_visitor_34
