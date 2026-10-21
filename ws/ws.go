@@ -230,7 +230,8 @@ func enqueueMessage(msg *Message) bool {
 }
 func UpdateVisitorUser(visitorId string, toId string) {
 	guest, ok := ClientList.Get(visitorId)
-	if ok {
+	if ok && guest != nil {
 		guest.SetRouteTo(toId)
+		_ = WriteJSON(guest, TypeMessage{Type: "transfer", Data: toId})
 	}
 }

@@ -376,6 +376,8 @@
             sendDisabled:false,
             showFaceIcon:false,
             showLoadMore:false,
+            historyRequest:0,
+            historyLoading:false,
             messages:{
                 page:1,
                 pagesize:15,
@@ -393,8 +395,16 @@
                 mes.data = this.kfConfig;
                 this.socket.send(JSON.stringify(mes));
             },
+            sortMessages(){
+                const pending=this.msgList.filter(message=>message.sending);
+                const messages=this.msgList.filter(message=>!message.sending);
+                const persisted=messages.filter(message=>message.id).sort((a,b)=>a.id-b.id);
+                let index=0;
+                this.msgList=messages.map(message=>message.id ? persisted[index++] : message).concat(pending);
+            },
             trimMessages(){
-                if(this.msgList.length > 200){
+                // 已加载旧页时保留历史，避免下一条实时消息又将其裁掉。
+                if(this.messages.page<=2 && this.msgList.length > 200){
                     this.msgList.splice(0, this.msgList.length - 200);
                 }
             },
@@ -479,8 +489,9 @@
                     content.is_kefu = msg.is_kefu=="yes"? true:false;
                     content.time = msg.time;
                     content.id = msg.message_id;
-                    if (msg.id == this.currentGuest) {
+                    if (msg.id == this.currentGuest && (!content.id || !this.msgList.some(message=>message.id==content.id))) {
                         this.msgList.push(content);
+                        this.sortMessages();
                         this.trimMessages();
                     }
 
@@ -525,6 +536,8 @@
                 //获取当前客户消息
                 this.messages.page=1;
                 this.msgList=[];
+                this.showLoadMore=true;
+                this.historyLoading=false;
                 this.getHistoryMessage();
                 //this.getMesssagesByVisitorId(guestId);
             },
@@ -547,8 +560,12 @@
                 mes.from_id = this.kfConfig.id;
                 mes.to_id = this.currentGuest;
                 mes.content = this.messageContent;
-                this.sendAjax("/kefu/message","POST",mes,function(res){
-                    _this.sendDisabled=false;
+                $.ajax({
+                    url:"/kefu/message",
+                    type:"post",
+                    data:mes,
+                    headers:{"token":localStorage.getItem("token")},
+                    success:function(res){
                     if(res.code!=200){
                         _this.$message({
                             message: res.msg,
@@ -556,8 +573,13 @@
                         });
                         return;
                     }
-                    _this.messageContent = "";
+                    if(_this.messageContent==mes.content){ _this.messageContent = ""; }
                     _this.sendSound();
+                    },
+                    error:function(){
+                        _this.$message({message:"发送失败，请重试",type:"error"});
+                    },
+                    complete:function(){ _this.sendDisabled=false; }
                 });
 
                 // let content = {}
@@ -567,7 +589,6 @@
                 // content.is_kefu = true;
                 // content.time = '';
                 // this.msgList.push(content);
-                _this.sendDisabled=false;
                 this.scrollBottom();
             },
             //处理当前在线用户列表
@@ -743,12 +764,17 @@
                 }
             },
             getHistoryMessage(){
+                if(this.historyLoading){ return; }
+                this.historyLoading=true;
+                const request=++this.historyRequest;
                 const visitorId=this.currentGuest;
                 let params={
                     page:this.messages.page,
                     pagesize: this.messages.pagesize,
                     visitor_id: visitorId,
                 }
+                const oldest=this.msgList.find(message=>message.id && !message.sending);
+                if(params.page>1 && oldest){ params.before_id=oldest.id; }
                 let _this=this;
                 $.ajax({
                     url:"/2/messagesPages",
@@ -756,7 +782,7 @@
                     data:params,
                     headers:{"token":localStorage.getItem("token")},
                     success:function(res){
-                    if(res.code!=200 || _this.currentGuest!=visitorId){
+                    if(res.code!=200 || request!=_this.historyRequest || _this.currentGuest!=visitorId){
                         return;
                     }
                     let msgList=res.result.list;
@@ -767,7 +793,7 @@
                     }
                     for(let i in msgList){
                         let item = msgList[i];
-                        //let content = {}
+                        if(_this.msgList.some(message=>message.id==item.id)){ continue; }
                         if (item["mes_type"] == "kefu") {
                             item.is_kefu = true;
                             item.avator=item["kefu_avator"];
@@ -781,12 +807,15 @@
                         item.time = item["create_time"];
                         _this.msgList.unshift(item);
                     }
-                    _this.trimMessages();
+                    _this.sortMessages();
                     _this.readCurrentMessages();
-                    if(_this.messages.page==1){
+                    if(params.page==1){
                         _this.scrollBottom();
                     }
-                    _this.messages.page++;
+                    _this.messages.page=params.page+1;
+                    },
+                    complete:function(){
+                        if(request==_this.historyRequest){ _this.historyLoading=false; }
                     }
                 });
             },
@@ -797,6 +826,8 @@
                 this.currentGuest=visitorId;
                 this.msgList=[];
                 this.messages.page=1;
+                this.showLoadMore=true;
+                this.historyLoading=false;
                 this.getHistoryMessage();
             },
             //获取客服信息
@@ -810,6 +841,7 @@
                         "token":localStorage.getItem("token")
                     },
                     success: function(data) {
+                        if(_this.currentGuest!=vid){ return; }
                         if(data.result!=null){
                             let r=data.result;
                             _this.visitor=r;

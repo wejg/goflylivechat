@@ -1,0 +1,43 @@
+{
+  "runId": "20261021035108791-50f985",
+  "startedAt": "2026-10-21T03:51:08.793Z",
+  "status": "failed",
+  "config": {
+    "visitors": 100,
+    "agents": 5,
+    "seconds": 5,
+    "intervalSeconds": 5,
+    "appCPU": 2,
+    "dbCPU": 2,
+    "memoryMiBEach": 512,
+    "sourceIPs": "distinct X-Forwarded-For per virtual client; only the isolated network gateway is trusted; business rate limiter unchanged"
+  },
+  "phases": [],
+  "checks": [],
+  "issues": [
+    "Error: docker exec -i gofly-load-20261021035108791-50f985-db failed: ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)\n\n    at file:///Users/diannao/goflylivechat/tests/load/run.mjs:35:27\n    at ChildProcess.exithandler (node:child_process:424:5)\n    at ChildProcess.emit (node:events:514:20)\n    at maybeClose (node:internal/child_process:1125:16)\n    at Socket.<anonymous> (node:internal/child_process:497:11)\n    at Socket.emit (node:events:514:20)\n    at Pipe.<anonymous> (node:net:362:12)"
+  ],
+  "resources": [],
+  "requests": {},
+  "unexpectedCloses": 0,
+  "source": {
+    "head": "70f245529dc12966aeee81a5374115fdecc5745e",
+    "workingCodeDiffSHA256": "b62679cea97daded573a547b9815749923e78ec46c3e88ececcc43d77e5ee543",
+    "imageId": "sha256:2280a54c2804afb381af10a5605c54b27b9a32b91d0ec48f3aafbad113b30d20"
+  },
+  "host": {
+    "cpus": 8,
+    "memoryBytes": 8319770624,
+    "docker": "29.8.0"
+  },
+  "finishedAt": "2026-10-21T03:51:24.147Z",
+  "failures": 1,
+  "closes": [],
+  "messageLatencyMs": {
+    "samples": 0,
+    "p50": null,
+    "p95": null,
+    "p99": null,
+    "max": null
+  }
+}

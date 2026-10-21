@@ -106,6 +106,10 @@ func PostVisitorLogin(c *gin.Context) {
 		})
 		return
 	}
+	visitor := models.FindVisitorByVistorId(id)
+	if visitor.ID != 0 && visitor.ToId != "" {
+		toId = visitor.ToId
+	}
 	kefuInfo := models.FindUser(toId)
 	if kefuInfo.ID == 0 {
 		c.JSON(200, gin.H{
@@ -114,19 +118,20 @@ func PostVisitorLogin(c *gin.Context) {
 		})
 		return
 	}
-	visitor := models.FindVisitorByVistorId(id)
-	if visitor.Name != "" {
-		avator = visitor.Avator
-		//更新状态上线
-		models.UpdateVisitor(name, visitor.Avator, id, 1, c.ClientIP(), c.ClientIP(), refer, extra)
+	var saveErr error
+	if visitor.ID != 0 {
+		//更新状态上线，保留转接后的客服归属。
+		saveErr = models.UpdateVisitor(name, visitor.Avator, id, 1, c.ClientIP(), c.ClientIP(), refer, extra)
+		if saveErr == nil {
+			visitor = models.FindVisitorByVistorId(id)
+		}
 	} else {
-		models.CreateVisitor(name, avator, c.ClientIP(), toId, id, refer, city, client_ip, extra)
+		visitor, saveErr = models.CreateVisitor(name, avator, c.ClientIP(), toId, id, refer, city, client_ip, extra)
 	}
-	visitor.Name = name
-	visitor.Avator = avator
-	visitor.ToId = toId
-	visitor.ClientIp = c.ClientIP()
-	visitor.VisitorId = id
+	if saveErr != nil || visitor.ID == 0 {
+		c.JSON(200, gin.H{"code": 500, "msg": "登录保存失败"})
+		return
+	}
 
 	//各种通知
 	go SendNoticeEmail(kefuInfo.Name, visitor.Name, " incoming!")

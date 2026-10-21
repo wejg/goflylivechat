@@ -6,6 +6,7 @@ import (
 	"goflylivechat/tools"
 	"goflylivechat/ws"
 	"net/http"
+	"sync"
 )
 
 func PostKefuAvator(c *gin.Context) {
@@ -133,7 +134,13 @@ func GetOtherKefuList(c *gin.Context) {
 		"result": result,
 	})
 }
+
+// Keep ownership, the live route, and notifications in the same transfer order.
+var transferMu sync.Mutex
+
 func PostTransKefu(c *gin.Context) {
+	transferMu.Lock()
+	defer transferMu.Unlock()
 	kefuId := c.Query("kefu_id")
 	visitorId := c.Query("visitor_id")
 	curKefuId, _ := c.Get("kefu_name")
@@ -146,11 +153,24 @@ func PostTransKefu(c *gin.Context) {
 		})
 		return
 	}
-	models.UpdateVisitorKefu(visitorId, kefuId)
+	if visitor.ToId != curKefuId {
+		c.JSON(200, gin.H{"code": 403, "msg": "无权操作该访客"})
+		return
+	}
+	updated, err := models.UpdateVisitorKefu(visitorId, curKefuId.(string), kefuId)
+	if err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "转接保存失败"})
+		return
+	}
+	if !updated {
+		c.JSON(200, gin.H{"code": 403, "msg": "会话归属已变更"})
+		return
+	}
+	visitor.ToId = kefuId
 	ws.UpdateVisitorUser(visitorId, kefuId)
-	go ws.VisitorOnline(kefuId, visitor)
-	go ws.VisitorOffline(curKefuId.(string), visitor.VisitorId, visitor.Name)
-	go ws.VisitorNotice(visitor.VisitorId, "客服转接到"+user.Nickname)
+	ws.VisitorOnline(kefuId, visitor)
+	ws.VisitorRemoved(curKefuId.(string), visitor.VisitorId, visitor.Name)
+	ws.VisitorNotice(visitor.VisitorId, "客服转接到"+user.Nickname)
 	c.JSON(200, gin.H{
 		"code": 200,
 		"msg":  "转移成功",

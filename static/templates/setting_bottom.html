@@ -88,6 +88,11 @@
                     headers: {
                         "token": localStorage.getItem("token")
                     },
+                    error: function(xhr) {
+                        const data = xhr.responseJSON;
+                        _this.$message({message: data && data.msg || "请求失败，请重试", type: 'error'});
+                        _this.fullscreenLoading=false;
+                    },
                     success: function(data) {
                         if(data.code!=200){
                             _this.$message({
@@ -132,7 +137,6 @@
                 let _this=this;
                 this.sendAjax("/kefuinfo","POST",{
                     id:_this.kefuInfo.uid,
-                    name:_this.kefuInfo.username,
                     nickname:_this.kefuInfo.nickname,
                     avator:_this.kefuInfo.avator,
                     password:_this.kefuInfo.password,
@@ -192,7 +196,7 @@
                         }
                         if(data.code==200 && data.result!=null){
                             _this.kefuInfo=data.result;
-                            _this.chatEndpoint=window.location.origin + '/livechat?user_id='+_this.kefuInfo.username;
+                            _this.chatEndpoint=window.location.origin + '/livechat?user_id='+encodeURIComponent(_this.kefuInfo.username);
                         }
 
                         _this.deployCode = `
@@ -208,10 +212,10 @@
       }
     };
     head.appendChild(script);
-  })(window, document, "${_this.host}", function(baseUrl) {
+  })(window, document, ${JSON.stringify(_this.host).replace(/</g, '\\u003c')}, function(baseUrl) {
     CHAT_WIDGET.initialize({
       API_URL: baseUrl,
-      AGENT_ID: "${_this.kefuInfo.username}",
+      AGENT_ID: ${JSON.stringify(_this.kefuInfo.username).replace(/</g, '\\u003c')},
     });
   });
 <\/script>

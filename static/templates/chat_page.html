@@ -120,6 +120,8 @@
             isIframe:false,
             kefuInfo:{},
             showLoadMore:false,
+            historyRequest:0,
+            historyLoading:false,
             messages:{
                 page:1,
                 pagesize:5,
@@ -137,6 +139,10 @@
             },
             OnOpen:function() {
                 console.log("ws:onopen");
+                this.messages.page=1;
+                this.showLoadMore=true;
+                this.historyLoading=false;
+                this.getHistoryMessage();
                 this.getNotice();
                 this.socketClosed=false;
                 this.focusSendConn=false;
@@ -175,6 +181,7 @@
                 if (redata.type == "message") {
                     let msg = redata.data
                     this.visitor.to_id=msg.id;
+                    if(msg.message_id && this.msgList.some(message=>message.id==msg.message_id)){ return; }
 
                     let content = {}
                     content.avator = msg.avator;
@@ -182,7 +189,9 @@
                     content.content =replaceContent(msg.content);
                     content.is_kefu = true;
                     content.time = msg.time;
+                    content.id = msg.message_id;
                     this.msgList.push(content);
+                    this.sortMessages();
                     this.trimMessages();
 
                     notify(msg.name, {
@@ -221,6 +230,7 @@
                 window.parent.postMessage(redata,"*");
             },
             chatToUser:function() {
+                if(this.sendDisabled){ return; }
                 var messageContent=this.messageContent.trim("\r\n");
                 messageContent=messageContent.replace("\n","");
                 messageContent=messageContent.replace("\r\n","");
@@ -246,6 +256,7 @@
                 content.is_kefu = false;
                 content.time = _this.getNowDate();
                 content.show_time=false;
+                content.sending=true;
                 _this.msgList.push(content);
                 _this.trimMessages();
                 _this.scrollBottom();
@@ -256,19 +267,38 @@
                 mes.from_id = this.visitor.visitor_id;
                 mes.to_id = this.visitor.to_id;
                 mes.content = this.messageContent;
-                $.post("/2/message",mes,function(res){
-                    _this.sendDisabled=false;
+                let sent=false;
+                $.ajax({
+                    url:"/2/message",
+                    type:"post",
+                    data:mes,
+                    success:function(res){
                     if(res.code!=200){
-                        _this.msgList.pop();
                         _this.$message({
                             message: res.msg,
                             type: 'error'
                         });
                         return;
                     }
-                    _this.messageContent = "";
+                    sent=true;
+                    content.sending=false;
+                    content.id=res.result.message_id;
+                    _this.msgList=_this.msgList.filter(message=>message===content || message.id!=content.id);
+                    _this.sortMessages();
+                    if(_this.messageContent==messageContent){ _this.messageContent = ""; }
                     clearInterval(_this.timer);
                     _this.sendSound();
+                    },
+                    error:function(){
+                        _this.$message({message:"发送失败，请重试",type:"error"});
+                    },
+                    complete:function(){
+                        _this.sendDisabled=false;
+                        if(!sent){
+                            const index=_this.msgList.indexOf(content);
+                            if(index!=-1){ _this.msgList.splice(index,1); }
+                        }
+                    }
                 });
 
             },
@@ -280,7 +310,7 @@
                 let obj=this.getCache("visitor_"+KEFU_ID);
                 var visitor_id=INITIAL_VISITOR_ID;
                 var to_id=KEFU_ID;
-                if(obj){
+                if(!visitor_id && obj){
                     visitor_id=obj.visitor_id;
                 }
                 let _this=this;
@@ -299,17 +329,23 @@
                         return;
                     }
                     _this.visitor=res.result;
-                    _this.getHistoryMessage();
                     _this.setCache("visitor_"+KEFU_ID,res.result);
                     _this.initConn();
                 });
             },
             getHistoryMessage:function(){
+                if(this.historyLoading){ return; }
+                this.historyLoading=true;
+                const request=++this.historyRequest;
                 let params={
                     page:this.messages.page,
                     pagesize: this.messages.pagesize,
                     visitor_id: this.visitor.visitor_id,
                 }
+                const oldest=this.msgList.find(message=>message.id && !message.sending);
+                if(params.page>1 && oldest){ params.before_id=oldest.id; }
+                // 成功后只替换旧快照，保留请求期间收到或仍在发送的消息。
+                const previousMessages=new Set(params.page==1 ? this.msgList.filter(message=>!message.sending) : []);
                 let _this=this;
                 $.ajax({
                     url:"/2/messagesPages",
@@ -318,8 +354,11 @@
                     // 访客 token 由 /visitor_login 下发，用来证明「我就是这个访客」。
                     headers:{"token":this.visitor.token||""},
                     success:function(res){
-                    if(res.code!=200){
+                    if(res.code!=200 || request!=_this.historyRequest || params.visitor_id!=_this.visitor.visitor_id){
                         return;
+                    }
+                    if(params.page==1){
+                        _this.msgList=_this.msgList.filter(message=>!previousMessages.has(message));
                     }
                     let msgList=res.result.list;
                     if(msgList.length>=_this.messages.pagesize){
@@ -329,7 +368,7 @@
                     }
                     for(let i in msgList){
                         let item = msgList[i];
-                        let content = {}
+                        if(_this.msgList.some(message=>message.id==item.id)){ continue; }
                         if (item["mes_type"] == "kefu") {
                             item.is_kefu = true;
                             item.avator=item["kefu_avator"];
@@ -342,16 +381,27 @@
                         item.content=replaceContent(item["content"]);
                         _this.msgList.unshift(item);
                     }
-                    _this.trimMessages();
-                    if(_this.messages.page==1){
+                    _this.sortMessages();
+                    if(params.page==1){
                         _this.scrollBottom();
                     }
-                    _this.messages.page++;
+                    _this.messages.page=params.page+1;
+                    },
+                    complete:function(){
+                        if(request==_this.historyRequest){ _this.historyLoading=false; }
                     }
                 });
             },
+            sortMessages:function(){
+                const pending=this.msgList.filter(message=>message.sending);
+                const messages=this.msgList.filter(message=>!message.sending);
+                const persisted=messages.filter(message=>message.id).sort((a,b)=>a.id-b.id);
+                let index=0;
+                this.msgList=messages.map(message=>message.id ? persisted[index++] : message).concat(pending);
+            },
             trimMessages:function(){
-                if(this.msgList.length > 200){
+                // 已加载旧页时保留历史，避免下一条实时消息又将其裁掉。
+                if(this.messages.page<=2 && this.msgList.length > 200){
                     this.msgList.splice(0, this.msgList.length - 200);
                 }
             },
@@ -381,7 +431,7 @@
             },
             getNotice : function (){
                 let _this=this;
-                $.get("/notice?kefu_id="+KEFU_ID,function(res) {
+                $.get("/notice?kefu_id="+encodeURIComponent(KEFU_ID),function(res) {
                     var code=res.code;
                     if(code!=200) return;
                     _this.kefuInfo=res.result;

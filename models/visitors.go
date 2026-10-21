@@ -19,7 +19,7 @@ type Visitor struct {
 	Extra       string `json:"extra"`
 }
 
-func CreateVisitor(name, avator, sourceIp, toId, visitorId, refer, city, clientIp, extra string) {
+func CreateVisitor(name, avator, sourceIp, toId, visitorId, refer, city, clientIp, extra string) (Visitor, error) {
 	v := &Visitor{
 		Name:      name,
 		Avator:    avator,
@@ -33,7 +33,8 @@ func CreateVisitor(name, avator, sourceIp, toId, visitorId, refer, city, clientI
 		Extra:     extra,
 	}
 	v.UpdatedAt = time.Now()
-	DB.Create(v)
+	err := DB.Create(v).Error
+	return *v, err
 }
 func FindVisitorByVistorId(visitorId string) Visitor {
 	var v Visitor
@@ -57,6 +58,7 @@ func FindVisitorsByKefuId(page uint, pagesize uint, kefuId string) []Visitor {
 	DB.Where("to_id=?", kefuId).Offset(offset).Limit(pagesize).Order("updated_at desc").Find(&visitors)
 	return visitors
 }
+
 // FindOnlineVisitorIds 只取 visitor_id，避免把整行读进内存。
 func FindOnlineVisitorIds() []string {
 	var ids []string
@@ -79,7 +81,7 @@ func UpdateVisitorsOffline(visitorIds []string) {
 	}
 	DB.Model(&Visitor{}).Where("visitor_id IN (?)", visitorIds).Update("status", 0)
 }
-func UpdateVisitor(name, avator, visitorId string, status uint, clientIp string, sourceIp string, refer, extra string) {
+func UpdateVisitor(name, avator, visitorId string, status uint, clientIp string, sourceIp string, refer, extra string) error {
 	visitor := &Visitor{
 		Status:   status,
 		ClientIp: clientIp,
@@ -90,11 +92,11 @@ func UpdateVisitor(name, avator, visitorId string, status uint, clientIp string,
 		Avator:   avator,
 	}
 	visitor.UpdatedAt = time.Now()
-	DB.Model(visitor).Where("visitor_id = ?", visitorId).Update(visitor)
+	return DB.Model(visitor).Where("visitor_id = ?", visitorId).Update(visitor).Error
 }
-func UpdateVisitorKefu(visitorId string, kefuId string) {
-	visitor := Visitor{}
-	DB.Model(&visitor).Where("visitor_id = ?", visitorId).Update("to_id", kefuId)
+func UpdateVisitorKefu(visitorId, fromId, kefuId string) (bool, error) {
+	result := DB.Model(&Visitor{}).Where("visitor_id = ? AND to_id = ?", visitorId, fromId).Update("to_id", kefuId)
+	return result.RowsAffected == 1, result.Error
 }
 
 // 查询条数

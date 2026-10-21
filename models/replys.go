@@ -1,5 +1,7 @@
 package models
 
+import "github.com/jinzhu/gorm"
+
 type ReplyItem struct {
 	Id       string `json:"item_id"`
 	Content  string `json:"item_content"`
@@ -31,7 +33,9 @@ func FindReplyByUserId(userId interface{}) []*ReplyGroup {
 		temp[replyGroup.Id] = replyGroup
 	}
 	for _, replyItem := range replyItems {
-		temp[replyItem.GroupId].Items = append(temp[replyItem.GroupId].Items, replyItem)
+		if group := temp[replyItem.GroupId]; group != nil {
+			group.Items = append(group.Items, replyItem)
+		}
 	}
 	return replyGroups
 }
@@ -47,39 +51,56 @@ func FindReplyTitleByUserId(userId interface{}) []*ReplyGroup {
 		temp[replyGroup.Id] = replyGroup
 	}
 	for _, replyItem := range replyItems {
-		temp[replyItem.GroupId].Items = append(temp[replyItem.GroupId].Items, replyItem)
+		if group := temp[replyItem.GroupId]; group != nil {
+			group.Items = append(group.Items, replyItem)
+		}
 	}
 	return replyGroups
 }
-func CreateReplyGroup(groupName string, userId string) {
-	g := &ReplyGroup{
-		GroupName: groupName,
-		UserId:    userId,
+func CreateReplyGroup(groupName string, userId string) error {
+	return DB.Create(&ReplyGroup{GroupName: groupName, UserId: userId}).Error
+}
+func CreateReplyContent(groupId string, userId string, content, itemName string) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var group ReplyGroup
+		// 创建和删除锁定同一父行，分组删除后不能再插入回复。
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where("user_id = ? and id = ?", userId, groupId).First(&group).Error; err != nil {
+			return err
+		}
+		return tx.Create(&ReplyItem{GroupId: groupId, UserId: userId, Content: content, ItemName: itemName}).Error
+	})
+}
+func UpdateReplyContent(id, userId, title, content string) error {
+	result := DB.Model(&ReplyItem{}).Where("user_id = ? and id = ?", userId, id).Updates(map[string]interface{}{"item_name": title, "content": content})
+	if result.Error != nil {
+		return result.Error
 	}
-	DB.Create(g)
-}
-func CreateReplyContent(groupId string, userId string, content, itemName string) {
-	g := &ReplyItem{
-		GroupId:  groupId,
-		UserId:   userId,
-		Content:  content,
-		ItemName: itemName,
+	if result.RowsAffected == 0 {
+		return DB.Where("user_id = ? and id = ?", userId, id).First(&ReplyItem{}).Error
 	}
-	DB.Create(g)
+	return nil
 }
-func UpdateReplyContent(id, userId, title, content string) {
-	r := &ReplyItem{
-		ItemName: title,
-		Content:  content,
+func DeleteReplyContent(id string, userId string) error {
+	result := DB.Where("user_id = ? and id = ?", userId, id).Delete(ReplyItem{})
+	if result.Error != nil {
+		return result.Error
 	}
-	DB.Model(&ReplyItem{}).Where("user_id = ? and id = ?", userId, id).Update(r)
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
-func DeleteReplyContent(id string, userId string) {
-	DB.Where("user_id = ? and id = ?", userId, id).Delete(ReplyItem{})
-}
-func DeleteReplyGroup(id string, userId string) {
-	DB.Where("user_id = ? and id = ?", userId, id).Delete(ReplyGroup{})
-	DB.Where("user_id = ? and group_id = ?", userId, id).Delete(ReplyItem{})
+func DeleteReplyGroup(id string, userId string) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var group ReplyGroup
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").Where("user_id = ? and id = ?", userId, id).First(&group).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ? and group_id = ?", userId, id).Delete(ReplyItem{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("user_id = ? and id = ?", userId, id).Delete(ReplyGroup{}).Error
+	})
 }
 func FindReplyBySearcch(userId interface{}, search string) []*ReplyGroup {
 	var replyGroups []*ReplyGroup
@@ -92,7 +113,9 @@ func FindReplyBySearcch(userId interface{}, search string) []*ReplyGroup {
 		temp[replyGroup.Id] = replyGroup
 	}
 	for _, replyItem := range replyItems {
-		temp[replyItem.GroupId].Items = append(temp[replyItem.GroupId].Items, replyItem)
+		if group := temp[replyItem.GroupId]; group != nil {
+			group.Items = append(group.Items, replyItem)
+		}
 	}
 	var newReplyGroups []*ReplyGroup = make([]*ReplyGroup, 0)
 	for _, replyGroup := range replyGroups {

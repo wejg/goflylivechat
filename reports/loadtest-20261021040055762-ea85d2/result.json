@@ -1,0 +1,1957 @@
+{
+  "runId": "20261021040055762-ea85d2",
+  "startedAt": "2026-10-21T04:00:55.764Z",
+  "status": "failed",
+  "config": {
+    "visitors": 100,
+    "agents": 5,
+    "seconds": 600,
+    "intervalSeconds": 5,
+    "appCPU": 2,
+    "dbCPU": 2,
+    "memoryMiBEach": 512,
+    "sourceIPs": "distinct X-Forwarded-For per virtual client; only the isolated network gateway is trusted; business rate limiter unchanged",
+    "baseURL": "http://127.0.0.1:60095"
+  },
+  "phases": [
+    {
+      "name": "warmup-10",
+      "visitors": 10,
+      "seconds": 10.001258084000002,
+      "messages": 30
+    },
+    {
+      "name": "warmup-50",
+      "visitors": 50,
+      "seconds": 10.075544208,
+      "messages": 165
+    }
+  ],
+  "checks": [
+    {
+      "description": "same-IP limit accepted first and rejected immediate second message",
+      "messages": 1,
+      "trackedSockets": 6,
+      "openSockets": 6,
+      "closingSockets": 0,
+      "at": "2026-10-21T04:01:10.738Z"
+    },
+    {
+      "description": "warmup-10 checkpoint 0",
+      "messages": 16,
+      "trackedSockets": 15,
+      "openSockets": 15,
+      "closingSockets": 0,
+      "at": "2026-10-21T04:01:13.894Z"
+    },
+    {
+      "description": "warmup-10 complete",
+      "messages": 31,
+      "trackedSockets": 15,
+      "openSockets": 15,
+      "closingSockets": 0,
+      "at": "2026-10-21T04:01:23.872Z"
+    },
+    {
+      "description": "warmup-50 checkpoint 0",
+      "messages": 86,
+      "trackedSockets": 55,
+      "openSockets": 55,
+      "closingSockets": 0,
+      "at": "2026-10-21T04:01:23.970Z"
+    },
+    {
+      "description": "warmup-50 complete",
+      "messages": 196,
+      "trackedSockets": 55,
+      "openSockets": 55,
+      "closingSockets": 0,
+      "at": "2026-10-21T04:01:33.982Z"
+    }
+  ],
+  "issues": [
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.1发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.2发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.3发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.4发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.5发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.6发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.7发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.8发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.9发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.10发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.11发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.12发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.13发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.14发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.15发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.16发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.17发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.18发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.19发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.20发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.21发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.22发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.23发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.24发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.25发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.26发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.27发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.28发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.29发送频率过快\"}\n\n400 !== 200\n",
+    "/2/message: {\"code\":400,\"msg\":\"10.88.2.30发送频率过快\"}\n\n400 !== 200\n"
+  ],
+  "resources": [
+    {
+      "at": "2026-10-21T04:01:12.241Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.5kB / 40kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:12.241Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.52%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.7kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:12.740Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.5kB / 40kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:12.740Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.52%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.7kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:13.240Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.8kB / 40.1kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:13.240Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.10%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.8kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:13.740Z",
+      "phase": "rate-limit",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.8kB / 40.1kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:13.740Z",
+      "phase": "rate-limit",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.10%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.8kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:14.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.8kB / 40.1kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:14.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.8kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:14.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "3.60%",
+      "MemUsage": "18.43MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "59.8kB / 40.1kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:14.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.8MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "22.89%",
+      "MemUsage": "117.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "25.8kB / 44.7kB",
+      "PIDs": "18"
+    },
+    {
+      "at": "2026-10-21T04:01:15.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "4.78%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.15MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:15.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "4.55%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:15.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "4.78%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.15MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:15.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "4.55%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:16.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:16.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:16.739Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:16.739Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:17.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:17.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:17.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:17.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:18.239Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:18.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:18.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "272kB / 164kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:18.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:19.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.26%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "275kB / 166kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:19.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:19.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.26%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "5.89%",
+      "MemUsage": "30.14MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "275kB / 166kB",
+      "PIDs": "13"
+    },
+    {
+      "at": "2026-10-21T04:01:19.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.20%",
+      "MemUsage": "123.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "110kB / 224kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:20.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "3.76%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:20.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "2.91%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.40%",
+      "MemUsage": "124.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:20.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "3.76%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:20.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 45.9MB",
+      "CPUPerc": "2.91%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.40%",
+      "MemUsage": "124.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:21.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:21.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.27%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.40%",
+      "MemUsage": "124.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:21.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:21.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.27%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.40%",
+      "MemUsage": "124.9MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:22.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:22.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.11%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:22.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:22.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.11%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:23.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:23.240Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.05%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:23.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.37%",
+      "MemUsage": "32.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "434kB / 258kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:23.740Z",
+      "phase": "warmup-10",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.05%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:24.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.22%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.34%",
+      "MemUsage": "32.45MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "437kB / 259kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:24.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:24.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.22%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "6.34%",
+      "MemUsage": "32.45MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "437kB / 259kB",
+      "PIDs": "14"
+    },
+    {
+      "at": "2026-10-21T04:01:24.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "24.45%",
+      "MemUsage": "125.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "170kB / 359kB",
+      "PIDs": "34"
+    },
+    {
+      "at": "2026-10-21T04:01:25.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "12.14%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:25.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "13.48%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.68%",
+      "MemUsage": "136.6MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:25.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "12.14%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:25.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "13.48%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.68%",
+      "MemUsage": "136.6MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:26.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:26.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.07%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.68%",
+      "MemUsage": "136.6MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:26.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:26.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.07%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.68%",
+      "MemUsage": "136.6MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:27.239Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:27.239Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:27.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:27.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:28.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:28.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:28.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.64MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.23MB / 749kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:28.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:29.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.66%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.24MB / 754kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:29.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:29.741Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.66%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "12.82%",
+      "MemUsage": "65.63MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.24MB / 754kB",
+      "PIDs": "16"
+    },
+    {
+      "at": "2026-10-21T04:01:29.741Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.2MB",
+      "CPUPerc": "0.02%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "26.66%",
+      "MemUsage": "136.5MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "520kB / 1.03MB",
+      "PIDs": "80"
+    },
+    {
+      "at": "2026-10-21T04:01:30.239Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "8.86%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "16.03%",
+      "MemUsage": "82.06MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.86MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:30.239Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "8.81%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:30.739Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "8.86%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "16.03%",
+      "MemUsage": "82.06MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.86MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:30.739Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "8.81%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:31.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.23%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.81MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:31.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.06%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:31.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.23%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.81MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:31.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.06%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:32.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.81MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:32.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:32.740Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.81MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:32.741Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.04%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:33.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.8MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:33.240Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    },
+    {
+      "at": "2026-10-21T04:01:33.739Z",
+      "phase": "warmup-50",
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.00%",
+      "Container": "gofly-load-20261021040055762-ea85d2-app",
+      "ID": "d29aecfd4d85",
+      "MemPerc": "15.98%",
+      "MemUsage": "81.8MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-app",
+      "NetIO": "1.87MB / 1.14MB",
+      "PIDs": "17"
+    },
+    {
+      "at": "2026-10-21T04:01:33.739Z",
+      "phase": "warmup-50",
+      "BlockIO": "5.58MB / 46.3MB",
+      "CPUPerc": "0.03%",
+      "Container": "gofly-load-20261021040055762-ea85d2-db",
+      "ID": "7f56f0f6017b",
+      "MemPerc": "27.39%",
+      "MemUsage": "140.2MiB / 512MiB",
+      "Name": "gofly-load-20261021040055762-ea85d2-db",
+      "NetIO": "785kB / 1.55MB",
+      "PIDs": "85"
+    }
+  ],
+  "requests": {
+    "login": {
+      "count": 5,
+      "errors": 0,
+      "p50": 144.69,
+      "p95": 147.51,
+      "p99": 147.51
+    },
+    "POST /2/message": {
+      "count": 271,
+      "errors": 50,
+      "p50": 57.05,
+      "p95": 73.22,
+      "p99": 75.86
+    },
+    "GET /message_unread": {
+      "count": 246,
+      "errors": 0,
+      "p50": 22.29,
+      "p95": 35.5,
+      "p99": 38.85
+    },
+    "expected rate-limit rejection": {
+      "count": 1,
+      "errors": 0,
+      "p50": 2.55,
+      "p95": 2.55,
+      "p99": 2.55
+    },
+    "POST /message_status": {
+      "count": 32,
+      "errors": 0,
+      "p50": 62.1,
+      "p95": 65.48,
+      "p99": 75.18
+    },
+    "POST /kefu/message": {
+      "count": 30,
+      "errors": 5,
+      "p50": 53.15,
+      "p95": 67.04,
+      "p99": 72.69
+    },
+    "GET /2/messagesPages": {
+      "count": 30,
+      "errors": 0,
+      "p50": 20.59,
+      "p95": 48.66,
+      "p99": 48.87
+    }
+  },
+  "unexpectedCloses": 0,
+  "source": {
+    "head": "70f245529dc12966aeee81a5374115fdecc5745e",
+    "workingCodeDiffSHA256": "b62679cea97daded573a547b9815749923e78ec46c3e88ececcc43d77e5ee543",
+    "imageId": "sha256:1d2740797d6afadfab694f5fc459cfcce2ccad1ceb7aa497a09ea31c6ff20ed5"
+  },
+  "host": {
+    "cpus": 8,
+    "memoryBytes": 8319770624,
+    "docker": "29.8.0"
+  },
+  "finishedAt": "2026-10-21T04:01:34.072Z",
+  "failures": 56,
+  "closes": [
+    {
+      "label": "agent:a2",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "agent:a3",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "agent:a1",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "agent:a4",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "agent:a0",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_97",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_19",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_17",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_18",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_25",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_6",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_23",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_22",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_21",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_20",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_16",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_27",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_38",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_15",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_37",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_40",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_26",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_5",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_24",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_39",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_12",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_10",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_4",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_43",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_14",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_3",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_30",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_7",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_52",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_2",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_9",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_1",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_28",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_0",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_11",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_13",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_8",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_42",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_29",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_48",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_55",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_41",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_53",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_50",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_56",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_49",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_69",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_34",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_64",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_33",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_36",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_57",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_59",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_35",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_67",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_54",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_31",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_32",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_45",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_44",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_46",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_47",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_72",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_51",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_70",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_63",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_58",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_62",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_71",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_61",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_65",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_68",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_60",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_77",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_79",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_76",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_75",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_96",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_81",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_74",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_80",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_95",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_66",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_73",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_83",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_84",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_78",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_82",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_85",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_98",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_99",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_87",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_86",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_91",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_92",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_93",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_94",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_88",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_90",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    },
+    {
+      "label": "visitor:load_visitor_89",
+      "planned": true,
+      "code": 1005,
+      "phase": "steady"
+    }
+  ],
+  "messageLatencyMs": {
+    "samples": 50,
+    "p50": 34.55,
+    "p95": 42.79,
+    "p99": 43.14,
+    "max": 43.13854100000026
+  },
+  "containerState": {
+    "oomKilled": false,
+    "restartCount": 0
+  }
+}

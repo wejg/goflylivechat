@@ -99,8 +99,9 @@ func SendMessageV2(c *gin.Context) {
 		go ws.VisitorAutoReply(vistorInfo, kefuInfo, content)
 		go models.UpdateVisitorLastMessage(vistorInfo.VisitorId, content)
 		c.JSON(200, gin.H{
-			"code": 200,
-			"msg":  "ok",
+			"code":   200,
+			"msg":    "ok",
+			"result": gin.H{"message_id": messageID},
 		})
 	}
 
@@ -138,7 +139,8 @@ func SendKefuMessage(c *gin.Context) {
 		return
 	}
 
-	if _, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, "kefu"); err != nil {
+	messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, content, "kefu")
+	if err != nil {
 		c.JSON(200, gin.H{"code": 500, "msg": "消息保存失败，请重试"})
 		return
 	}
@@ -147,13 +149,14 @@ func SendKefuMessage(c *gin.Context) {
 	guest, ok := ws.ClientList.Get(vistorInfo.VisitorId)
 
 	if guest != nil && ok {
-		ws.VisitorMessage(vistorInfo.VisitorId, content, kefuInfo)
+		ws.VisitorMessage(vistorInfo.VisitorId, content, kefuInfo, messageID)
 	}
-	ws.KefuMessage(vistorInfo.VisitorId, content, kefuInfo)
+	ws.KefuMessage(vistorInfo.VisitorId, content, kefuInfo, messageID)
 	go models.UpdateVisitorLastMessage(vistorInfo.VisitorId, content)
 	c.JSON(200, gin.H{
-		"code": 200,
-		"msg":  "ok",
+		"code":   200,
+		"msg":    "ok",
+		"result": gin.H{"message_id": messageID},
 	})
 
 }
@@ -321,8 +324,21 @@ func GetMessagespages(c *gin.Context) {
 	if pageSize > 20 {
 		pageSize = 20
 	}
+	queryPage := page
+	query := "message.visitor_id = ?"
+	args := []interface{}{visitorId}
+	if _, provided := c.Request.URL.Query()["before_id"]; provided {
+		beforeID, err := strconv.ParseUint(c.Query("before_id"), 10, 32)
+		if err != nil || beforeID == 0 {
+			c.JSON(200, gin.H{"code": 400, "msg": "before_id必须是正整数消息ID"})
+			return
+		}
+		query += " AND message.id < ?"
+		args = append(args, beforeID)
+		queryPage = 1
+	}
 	count := models.CountMessage("visitor_id = ?", visitorId)
-	list := models.FindMessageByPage(uint(page), uint(pageSize), "message.visitor_id = ?", visitorId)
+	list := models.FindMessageByPage(uint(queryPage), uint(pageSize), query, args...)
 	c.JSON(200, gin.H{
 		"code": 200,
 		"msg":  "ok",

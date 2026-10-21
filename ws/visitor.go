@@ -109,6 +109,10 @@ func VisitorOnline(kefuId string, visitor models.Visitor) {
 func VisitorOffline(kefuId string, visitorId string, visitorName string) {
 
 	models.UpdateVisitorStatus(visitorId, 0)
+	VisitorRemoved(kefuId, visitorId, visitorName)
+}
+
+func VisitorRemoved(kefuId, visitorId, visitorName string) {
 	userInfo := make(map[string]string)
 	userInfo["uid"] = visitorId
 	userInfo["name"] = visitorName
@@ -127,7 +131,7 @@ func VisitorNotice(visitorId string, notice string) {
 	}
 	_ = WriteJSON(visitor, TypeMessage{Type: "notice", Data: notice})
 }
-func VisitorMessage(visitorId, content string, kefuInfo models.User) {
+func VisitorMessage(visitorId, content string, kefuInfo models.User, messageID uint) {
 	visitor, ok := ClientList.Get(visitorId)
 	if !ok || visitor == nil {
 		return
@@ -135,13 +139,14 @@ func VisitorMessage(visitorId, content string, kefuInfo models.User) {
 	_ = WriteJSON(visitor, TypeMessage{
 		Type: "message",
 		Data: ClientMessage{
-			Name:    kefuInfo.Nickname,
-			Avator:  kefuInfo.Avator,
-			Id:      kefuInfo.Name,
-			Time:    time.Now().Format("2006-01-02 15:04:05"),
-			ToId:    visitorId,
-			Content: content,
-			IsKefu:  "no",
+			MessageId: messageID,
+			Name:      kefuInfo.Nickname,
+			Avator:    kefuInfo.Avator,
+			Id:        kefuInfo.Name,
+			Time:      time.Now().Format("2006-01-02 15:04:05"),
+			ToId:      visitorId,
+			Content:   content,
+			IsKefu:    "no",
 		},
 	})
 }
@@ -150,9 +155,12 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 	reply := models.FindReplyItemByUserIdTitle(kefuInfo.Name, content)
 	if reply.Content != "" {
 		time.Sleep(1 * time.Second)
-		VisitorMessage(vistorInfo.VisitorId, reply.Content, kefuInfo)
-		KefuMessage(vistorInfo.VisitorId, reply.Content, kefuInfo)
-		models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, reply.Content, "kefu")
+		messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, reply.Content, "kefu")
+		if err != nil {
+			return
+		}
+		VisitorMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
+		KefuMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
 	}
 	if !ok || kefu == nil {
 		time.Sleep(1 * time.Second)
@@ -160,8 +168,11 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 		if config.ConfValue == "" || reply.Content != "" {
 			return
 		}
-		VisitorMessage(vistorInfo.VisitorId, config.ConfValue, kefuInfo)
-		models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, config.ConfValue, "kefu")
+		messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, config.ConfValue, "kefu")
+		if err != nil {
+			return
+		}
+		VisitorMessage(vistorInfo.VisitorId, config.ConfValue, kefuInfo, messageID)
 	}
 }
 func CleanVisitorExpire() {

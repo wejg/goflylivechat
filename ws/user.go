@@ -76,17 +76,18 @@ func OneKefuMessage(toId string, str []byte) {
 		tools.Logger().Println("send_kefu_message", err)
 	}
 }
-func KefuMessage(visitorId, content string, kefuInfo models.User) {
+func KefuMessage(visitorId, content string, kefuInfo models.User, messageID uint) {
 	msg := TypeMessage{
 		Type: "message",
 		Data: ClientMessage{
-			Name:    kefuInfo.Nickname,
-			Avator:  kefuInfo.Avator,
-			Id:      visitorId,
-			Time:    time.Now().Format("2006-01-02 15:04:05"),
-			ToId:    visitorId,
-			Content: content,
-			IsKefu:  "yes",
+			MessageId: messageID,
+			Name:      kefuInfo.Nickname,
+			Avator:    kefuInfo.Avator,
+			Id:        visitorId,
+			Time:      time.Now().Format("2006-01-02 15:04:05"),
+			ToId:      visitorId,
+			Content:   content,
+			IsKefu:    "yes",
 		},
 	}
 	str, _ := json.Marshal(msg)

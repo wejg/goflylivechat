@@ -1,6 +1,10 @@
 package models
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/jinzhu/gorm"
+)
 
 var (
 	CustomConfigs []Config
@@ -24,32 +28,33 @@ type Config struct {
 	UserId    string `json:"user_id"`
 }
 
-func UpdateConfig(userid interface{}, key string, value string) {
-	config := FindConfigByUserId(userid, key)
-	if config.ID != 0 {
-		config.ConfValue = value
-		DB.Model(&Config{}).Where("user_id = ? and conf_key = ?", userid, key).Update(config)
-		configMu.Lock()
-		for i := range CustomConfigs {
-			if CustomConfigs[i].UserId == config.UserId && CustomConfigs[i].ConfKey == config.ConfKey {
-				CustomConfigs[i] = config
-			}
-		}
-		configMu.Unlock()
-	} else {
-		newConfig := &Config{
-			ID:        0,
-			ConfName:  "",
-			ConfKey:   key,
-			ConfValue: value,
-			UserId:    userid.(string),
-		}
-		DB.Create(newConfig)
-		configMu.Lock()
-		CustomConfigs = append(CustomConfigs, *newConfig)
-		configMu.Unlock()
+func UpdateConfig(userid interface{}, key string, value string) error {
+	var config Config
+	err := DB.Where("user_id = ? and conf_key = ?", userid, key).First(&config).Error
+	if err != nil && !gorm.IsRecordNotFoundError(err) {
+		return err
 	}
-
+	if config.ID != 0 {
+		if err := DB.Model(&Config{}).Where("user_id = ? and conf_key = ?", userid, key).Update("conf_value", value).Error; err != nil {
+			return err
+		}
+		config.ConfValue = value
+	} else {
+		config = Config{ConfKey: key, ConfValue: value, UserId: userid.(string)}
+		if err := DB.Create(&config).Error; err != nil {
+			return err
+		}
+	}
+	configMu.Lock()
+	defer configMu.Unlock()
+	for i := range CustomConfigs {
+		if CustomConfigs[i].UserId == config.UserId && CustomConfigs[i].ConfKey == config.ConfKey {
+			CustomConfigs[i] = config
+			return nil
+		}
+	}
+	CustomConfigs = append(CustomConfigs, config)
+	return nil
 }
 func FindConfigs() []Config {
 	var config []Config
