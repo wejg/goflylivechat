@@ -1,0 +1,13 @@
+{
+  "rows": 3110,
+  "uniqueKeys": 3110,
+  "clientAcknowledged": 3016,
+  "savedWithoutClientAcknowledgement": 94,
+  "uniqueVisitors": 1000,
+  "rowCountsByWave": {
+    "1": 1000,
+    "2": 1000,
+    "3": 1000,
+    "4": 110
+  }
+}

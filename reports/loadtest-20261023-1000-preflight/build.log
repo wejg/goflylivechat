@@ -1,0 +1,124 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 761B 0.1s done
+#1 DONE 0.4s
+
+#2 [internal] load metadata for m.daocloud.io/docker.io/library/alpine:3.22
+#2 ...
+
+#3 [internal] load metadata for m.daocloud.io/docker.io/library/golang:1.25-alpine
+#3 DONE 1.8s
+
+#2 [internal] load metadata for m.daocloud.io/docker.io/library/alpine:3.22
+#2 DONE 3.9s
+
+#4 [internal] load .dockerignore
+#4 transferring context:
+#4 transferring context: 150B 0.1s done
+#4 DONE 1.3s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [stage-1 1/8] FROM m.daocloud.io/docker.io/library/alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
+#6 resolve m.daocloud.io/docker.io/library/alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
+#6 ...
+
+#7 [build 1/6] FROM m.daocloud.io/docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#7 resolve m.daocloud.io/docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 0.7s done
+#7 DONE 0.8s
+
+#6 [stage-1 1/8] FROM m.daocloud.io/docker.io/library/alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
+#6 resolve m.daocloud.io/docker.io/library/alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654 0.7s done
+#6 sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 0B / 4.13MB 0.3s
+#6 sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 2.10MB / 4.13MB 3.9s
+#6 sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 3.15MB / 4.13MB 4.8s
+#6 sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 4.13MB / 4.13MB 5.1s
+#6 sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 4.13MB / 4.13MB 5.1s done
+#6 DONE 6.8s
+
+#5 [internal] load build context
+#5 transferring context: 57.99MB 5.3s
+#5 ...
+
+#6 [stage-1 1/8] FROM m.daocloud.io/docker.io/library/alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
+#6 extracting sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef
+#6 extracting sha256:281d5a96263b1ebc7051f11d9b9a4ca111ed1c711d5e209682310fc62c4b8bef 1.0s done
+#6 DONE 7.8s
+
+#8 [stage-1 2/8] RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories     && apk add --no-cache ca-certificates tzdata
+#8 3.841 fetch https://mirrors.aliyun.com/alpine/v3.22/main/aarch64/APKINDEX.tar.gz
+#8 ...
+
+#5 [internal] load build context
+#5 transferring context: 144.86MB 11.6s done
+#5 DONE 12.4s
+
+#9 [build 2/6] WORKDIR /src
+#9 CACHED
+
+#10 [build 3/6] COPY go.mod go.sum ./
+#10 CACHED
+
+#11 [build 4/6] RUN go mod download
+#11 CACHED
+
+#12 [build 5/6] COPY . .
+#12 ...
+
+#8 [stage-1 2/8] RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories     && apk add --no-cache ca-certificates tzdata
+#8 12.06 fetch https://mirrors.aliyun.com/alpine/v3.22/community/aarch64/APKINDEX.tar.gz
+#8 ...
+
+#12 [build 5/6] COPY . .
+#12 DONE 11.1s
+
+#13 [build 6/6] RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gofly .
+#13 ...
+
+#8 [stage-1 2/8] RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories     && apk add --no-cache ca-certificates tzdata
+#8 50.01 (1/2) Installing ca-certificates (20261020-r0)
+#8 52.22 (2/2) Installing tzdata (2026e-r0)
+#8 57.01 Executing busybox-1.37.0-r20.trigger
+#8 57.61 Executing ca-certificates-20261020-r0.trigger
+#8 58.69 OK: 8 MiB in 18 packages
+#8 DONE 64.2s
+
+#13 [build 6/6] RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gofly .
+#13 ...
+
+#14 [stage-1 3/8] WORKDIR /app
+#14 DONE 3.8s
+
+#13 [build 6/6] RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/gofly .
+#13 DONE 121.6s
+
+#15 [stage-1 4/8] COPY --from=build /out/gofly ./gofly
+#15 DONE 0.2s
+
+#16 [stage-1 5/8] COPY --from=build /src/static ./static
+#16 DONE 0.2s
+
+#17 [stage-1 6/8] COPY --from=build /src/config/GeoLite2-City.mmdb ./config/GeoLite2-City.mmdb
+#17 DONE 1.6s
+
+#18 [stage-1 7/8] COPY --from=build /src/import.sql ./import.sql
+#18 DONE 0.2s
+
+#19 [stage-1 8/8] RUN mkdir -p /app/static/upload /data
+#19 DONE 0.2s
+
+#20 exporting to image
+#20 exporting layers
+#20 exporting layers 2.2s done
+#20 exporting manifest sha256:56feed918278430017592f6dc8cb984a2ae5bb9f3366012ddb8c28c3dd74eb48 0.0s done
+#20 exporting config sha256:f550f971e75e471d555051ca5b4b8aaba2f9fc99a22d063912737d4406f0ac94 0.0s done
+#20 exporting attestation manifest sha256:b0118244b92bcd9090d0fb76bfe667e71b15a0c4354c05dd113b4e2f6f390c51 0.0s done
+#20 exporting manifest list sha256:3327b22d478b3d6ce13b1d70fa0681dd7647945e6787765319050f3a038a8093
+#20 exporting manifest list sha256:3327b22d478b3d6ce13b1d70fa0681dd7647945e6787765319050f3a038a8093 0.0s done
+#20 naming to docker.io/library/gofly-loadtest:20261023045321360-7e4f85 done
+#20 unpacking to docker.io/library/gofly-loadtest:20261023045321360-7e4f85
+#20 unpacking to docker.io/library/gofly-loadtest:20261023045321360-7e4f85 0.8s done
+#20 DONE 3.2s

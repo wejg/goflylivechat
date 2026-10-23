@@ -1,0 +1,16 @@
+2026-10-23T13:26:33+08:00
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+sock_throttled 0
+956960768
+Rss:               51332 kB
+Private_Dirty:     41936 kB
+Anonymous:         41936 kB
+some avg10=0.00 avg60=0.67 avg300=9.36 total=107133773
+full avg10=0.00 avg60=0.59 avg300=8.00 total=91101665
+some avg10=3.25 avg60=3.40 avg300=6.60 total=56964906179
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0

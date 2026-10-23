@@ -387,13 +387,13 @@ try {
         lastWall = wall; lastMono = mono;
     }, 1000);
     phase = 'rate-limit';
-    log('Checking same-IP rate limiting with the unchanged business limiter');
+    log('Checking same-sender message rate limiting');
     const v = visitors[0];
     await connect(v, 'visitor');
     const first = await send(v, 'visitor', 'limit-probe');
     const blocked = await api('/2/message', { ip: v.ip, expectedCode: 400, metric: 'expected rate-limit rejection', data: { type: 'visitor', from_id: v.id, to_id: v.agent.name, content: 'blocked rate-limit probe' } });
     assert.match(blocked.msg, /发送频率过快/);
-    await acknowledge(v, first.id); await verify('same-IP limit accepted first and rejected immediate second message');
+    await acknowledge(v, first.id); await verify('same-sender limit accepted first and rejected immediate second message');
     if (limitBoundaryEnabled) await runLimitBoundary(v);
     if (faultEnabled) await runFaultInjection(v);
     await sleep(3100);

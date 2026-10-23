@@ -1,0 +1,24 @@
+2026-10-23T13:17:53+08:00
+               total        used        free      shared  buff/cache   available
+Mem:            3622        1968         533          58        1483        1654
+Swap:              0           0           0
+goflylivechat-app-1 0.00% 8.496MiB / 3.537GiB 8
+goflylivechat-db-1 0.01% 123.1MiB / 3.537GiB 75
+myapp 0.00% 20.95MiB / 3.537GiB 11
+VmSize:	 1241104 kB
+VmRSS:	   19592 kB
+Threads:	8
+sockets: used 8
+TCP: inuse 2 orphan 0 tw 13 alloc 134 mem 0
+UDP: inuse 1 mem 0
+UDPLITE: inuse 0
+RAW: inuse 0
+FRAG: inuse 0 memory 0
+anon 8384512
+file 8192
+sock 0
+slab 603120
+1004	0
+Max_used_connections	101
+Threads_connected	2
+Threads_running	1
