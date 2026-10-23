@@ -97,6 +97,34 @@ The database, installation lock, and uploaded files are stored in named Docker v
 
 The Dockerfile uses DaoCloud's domestic Docker Hub mirror, Aliyun's Alpine mirror, and `goproxy.cn` for Go dependencies. If a mirror is temporarily unavailable, replace the `m.daocloud.io` prefix with another reachable domestic mirror.
 
+### 一键安装到 Linux 服务器
+
+在本机运行，复用当前 Dockerfile 和 Compose。本机需启动 Docker（含 Buildx），服务器需可通过 root SSH 登录；自动安装 Docker 支持 Debian/Ubuntu，已有 Docker 和 Compose >= 2.24.4 的其他 Linux 也可使用。支持 x86_64 和 ARM64。
+
+```bash
+bash scripts/deploy-linux.sh
+```
+
+首次运行按提示输入服务器地址、SSH 端口（默认 22）、用户（默认 root）及可选私钥路径。SSH 连通后，脚本自动创建本机 `scripts/deploy.env` 并设置权限 600；以后直接运行同一条命令。登录密码由 SSH 提示输入，不保存；使用密钥或 ssh-agent 时可免密登录。配置文件不会进入 Git 或 Docker 构建上下文。
+
+脚本会安装 Docker、生成独立生产密钥、本机构建并上传应用镜像、启动 MariaDB、首次初始化并替换默认客服密码，最后等待后台页面健康检查。自动化环境也可通过 `DEPLOY_HOST` 等环境变量配置；`SSH_PASSWORD` 环境变量模式需要本机安装 `sshpass`。高级配置项见 `scripts/deploy.env.example`，无需复制模板。
+
+默认目录 `/opt/goflylivechat`，后台 `http://服务器IP:8081/login`，账号 `agent`，初始随机密码在部署输出以及服务器的 `initial-admin-password.txt` 中。云安全组需放行 TCP 8081（修改端口时相应调整）；数据库不发布到宿主机端口。远端需能访问 Docker 官方软件源及 Compose 中的 MariaDB 镜像地址。HTTPS 和域名反代需另行配置。
+
+重复运行同一条命令即可更新应用，保留远端 `.env`、密码、数据库、安装锁、附件和头像；不会上传本机开发 `.env`。后续更改端口、允许来源或 App 接入配置，请修改服务器 `.env` 后重跑。更新会重建应用容器，已有聊天连接可能短暂中断；更新前请自行备份数据库和数据卷。脚本不执行数据删除或自动数据库回滚。
+
+远端排查命令（按实际部署目录调整）：
+
+```bash
+cd /opt/goflylivechat
+docker compose -p goflylivechat -f docker-compose.yml -f compose.production.yml ps
+docker compose -p goflylivechat -f docker-compose.yml -f compose.production.yml logs --tail=100 app db
+```
+
+如检测到已有数据却缺少 `.env` 或安装锁，脚本会停止，避免重新生成密码或执行会删除旧表的 `import.sql`。请恢复原配置/安装锁再重跑，不要删除数据卷。当前一台服务器使用固定 Compose 项目名 `goflylivechat`，不支持同机多实例。
+
+离线验证：`python3 -m unittest discover -s tests -p 'deploy_linux_test.py' -v`。
+
 ### Unread messages
 
 The online and recent visitor lists show unread incoming message counts; the Chat menu shows their total, including offline visitors. Counts are stored in the database and restored after refreshing or signing in again. Opening a conversation marks incoming messages through its newest displayed message ID as read. Messages received while the chat is hidden stay unread. Existing messages whose database status is still `unread` are included in the initial counts.

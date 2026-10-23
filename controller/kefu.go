@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"goflylivechat/ws"
@@ -21,6 +22,14 @@ func PostKefuAvator(c *gin.Context) {
 		return
 	}
 	kefuName, _ := c.Get("kefu_name")
+	if common.AppChatEnabled() {
+		var err error
+		avator, err = publishAgentAvatar(avator, kefuName.(string))
+		if err != nil {
+			c.JSON(400, gin.H{"code": 400, "msg": "头像保存失败"})
+			return
+		}
+	}
 	models.UpdateUserAvator(kefuName.(string), avator)
 	c.JSON(200, gin.H{
 		"code":   200,

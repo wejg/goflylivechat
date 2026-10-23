@@ -54,7 +54,7 @@ func Gzip() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		if !shouldCompress(c.Request) {
+		if strings.HasPrefix(c.Request.URL.Path, "/attachments/") || !shouldCompress(c.Request) {
 			c.Next()
 			return
 		}

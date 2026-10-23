@@ -101,13 +101,12 @@
                 if(this._dead || this._restoring){return;}
                 this._bottom=this.$el.scrollHeight-this.$el.clientHeight-this.$el.scrollTop<32 && !this.newer;
                 this.remember(); this.updateRange(); this.publish();
-                const top=this.$el.scrollTop<60;
                 const bottom=this.$el.scrollHeight-this.$el.clientHeight-this.$el.scrollTop<60;
-                const edge=(top && this.older?'older:':bottom && this.newer?'newer:':'')+this.items.map(this.key).join(',');
-                if(!top && !bottom){this._edge='';}
-                if(!this.loading && this.items.length && edge!==this._edge){
-                    if(top && this.older){this._edge=edge;this.request('older');}
-                    else if(bottom && this.newer){this._edge=edge;this.request('newer');}
+                const edge=this.items.map(this.key).join(',');
+                if(!bottom){this._edge='';}
+                // Older history is loaded explicitly; layout changes also emit scroll events.
+                if(bottom && this.newer && !this.loading && this.items.length && edge!==this._edge){
+                    this._edge=edge;this.request('newer');
                 }
             },
             updateRange(){
@@ -131,12 +130,16 @@
                 }
                 for(const row of rows){this._sizes.set(row.dataset.chatRow,Math.max(1,row.getBoundingClientRect().height));}
                 const heights=this.heights();
+                let target=this.$el.scrollTop;
                 if(this._bottom){
-                    this.$el.scrollTop=this.$el.scrollHeight;
+                    target=this.$el.scrollHeight-this.$el.clientHeight;
                 }else if(this._anchor){
                     const index=this.items.findIndex(item=>this.key(item)===this._anchor.key);
-                    if(index>=0){this.$el.scrollTop=this.$el.clientTop+(this.older?32:0)+heights.slice(0,index).reduce((a,b)=>a+b,0)-this._anchor.offset;}
+                    if(index>=0){target=this.$el.clientTop+(this.older?32:0)+heights.slice(0,index).reduce((a,b)=>a+b,0)-this._anchor.offset;}
                 }
+                target=Math.max(0,Math.min(target,this.$el.scrollHeight-this.$el.clientHeight));
+                // Reassigning the same offset can cancel WebView momentum scrolling.
+                if(Math.abs(this.$el.scrollTop-target)>1){this.$el.scrollTop=target;}
                 if(this.updateRange()){return;}
                 this._settle=requestAnimationFrame(()=>{
                     this._restoring=false;this.remember();this.publish();

@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/static/css/common.css?v=dgftr65ujhfg">
     <script src="/static/js/functions.js"></script>
     <script src="/static/js/reconnecting-websocket.min.js"></script>
-    <script src="/static/js/chat-window.js?v=2"></script>
+    <script src="/static/js/chat-window.js?v=4"></script>
     <link rel="stylesheet" href="/static/css/chat-window.css?v=2">
     <link rel="stylesheet" href="/static/css/icon/iconfont.css?v=fgjlgfda"/>
     <style>
@@ -1036,12 +1036,14 @@
                 $("#uploadImgFile").change(function (e) {
                     var formData = new FormData();
                     var file = $("#uploadImgFile")[0].files[0];
-                    formData.append("imgfile",file); //传给后台的file的key值是可以自己定义的
+                    formData.append("imgfile",file);
+                    formData.append("visitor_id",_this.currentGuest || ""); //传给后台的file的key值是可以自己定义的
                     filter(file) && $.ajax({
                         url: url || '',
                         type: "post",
                         data: formData,
                         contentType: false,
+                    headers:{token:localStorage.getItem("token") || ""},
                         processData: false,
                         dataType: 'JSON',
                         mimeType: "multipart/form-data",
@@ -1070,13 +1072,15 @@
                 $("#uploadRealFile").change(function (e) {
                     var formData = new FormData();
                     var file = $("#uploadRealFile")[0].files[0];
-                    formData.append("realfile",file); //传给后台的file的key值是可以自己定义的
+                    formData.append("realfile",file);
+                    formData.append("visitor_id",_this.currentGuest || ""); //传给后台的file的key值是可以自己定义的
                     console.log(formData);
                     $.ajax({
                         url: url || '',
                         type: "post",
                         data: formData,
                         contentType: false,
+                    headers:{token:localStorage.getItem("token") || ""},
                         processData: false,
                         dataType: 'JSON',
                         mimeType: "multipart/form-data",
@@ -1146,11 +1150,13 @@
                 let _this=this;
                 var formData = new FormData();
                 formData.append('imgfile', file);
+                formData.append('visitor_id',_this.currentGuest || '');
                 $.ajax({
                     url: '/uploadimg',
                     type: "post",
                     data: formData,
                     contentType: false,
+                    headers:{token:localStorage.getItem("token") || ""},
                     processData: false,
                     dataType: 'JSON',
                     mimeType: "multipart/form-data",
@@ -1356,6 +1362,7 @@
             },
         },
         mounted() {
+            $.ajax({url:'/agent/session',type:'POST',headers:{token:localStorage.getItem('token')||''}});
             document.addEventListener('paste', this.onPasteUpload);
             document.addEventListener('visibilitychange',this.readCurrentMessages);
             window.addEventListener('message',this.handleParentMessage);

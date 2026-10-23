@@ -1,6 +1,7 @@
 .git
 .idea
 .env
+scripts/deploy.env
 config/mysql.json
 install.lock
 logs

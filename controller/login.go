@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/tools"
 	"time"
@@ -62,6 +63,9 @@ func LoginCheckPass(c *gin.Context) {
 		return
 	}
 
+	if !common.AppChatEnabled() || common.AppSameOrigin(c.Request) {
+		setAgentCookie(c, token, 86400)
+	}
 	// Successful response
 	c.JSON(200, gin.H{
 		"code":    200,

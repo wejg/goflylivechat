@@ -34,6 +34,13 @@ services:
       GOFLY_SESSION_SECRET: ${GOFLY_SESSION_SECRET:-replace-with-a-long-random-secret}
       GOFLY_JWT_SECRET: ${GOFLY_JWT_SECRET:-replace-with-a-long-random-jwt-secret}
       GOFLY_ALLOWED_ORIGINS: ${GOFLY_ALLOWED_ORIGINS:-http://localhost:8081}
+      GOFLY_APP_CHAT_ENABLED: ${GOFLY_APP_CHAT_ENABLED:-false}
+      GOFLY_ENV: ${GOFLY_ENV:-production}
+      GOFLY_APP_API_BASE_URL: ${GOFLY_APP_API_BASE_URL:-}
+      GOFLY_APP_PUBLIC_ORIGIN: ${GOFLY_APP_PUBLIC_ORIGIN:-}
+      GOFLY_APP_ID: ${GOFLY_APP_ID:-}
+      GOFLY_APP_INTEGRATION_KEY: ${GOFLY_APP_INTEGRATION_KEY:-}
+      GOFLY_APP_DEFAULT_AGENT: ${GOFLY_APP_DEFAULT_AGENT:-agent}
       # 反代部署时填写代理地址，否则 ClientIP 拿到的是代理 IP，限流和黑名单会失效
       GOFLY_TRUSTED_PROXIES: ${GOFLY_TRUSTED_PROXIES:-}
     ports:
@@ -41,9 +48,11 @@ services:
     volumes:
       - app_data:/data
       - uploads:/app/static/upload
+      - avatars:/app/static/avatars
     restart: unless-stopped
 
 volumes:
   db_data:
   app_data:
   uploads:
+  avatars:

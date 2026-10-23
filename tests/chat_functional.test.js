@@ -20,9 +20,10 @@ function chat(kind = 'visitor', options = {}) {
         replaceContent: value => value,
         formatDate: value => value,
         getQuery: () => '',
-        window: { location: { origin: 'http://localhost' }, parent: { postMessage() {} } },
+        window: { location: { origin: 'http://localhost' }, parent: { postMessage() {} }, matchMedia: () => ({matches:!options.touch}) },
         document: { hidden: false },
         KEFU_ID: options.kefu || 'qa-agent',
+        APP_CHAT_ENABLED: false,
         INITIAL_VISITOR_ID: options.initialId || '',
         INITIAL_VISITOR_NAME: '', INITIAL_VISITOR_AVATAR: '', REFER: 'VM regression',
         clearInterval() {}, console: { log() {} }, notify() {}, flashTitle() {}, $: jquery,
@@ -62,6 +63,89 @@ function fail(request) {
     if (request.complete) request.complete();
 }
 function ids(app) { return Array.from(app.msgList, item => item.id); }
+
+test('visitor presence follows online events, heartbeat offline and reconnect', () => {
+    const {app}=chat();
+    app.OnMessage({data:JSON.stringify({type:'kfOnline',data:{id:'qa-agent',name:'小飞'}})});
+    assert.equal(app.showKfonline,true);
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:false}})});
+    assert.equal(app.showKfonline,false);
+    assert.match(app.chatTitle,/离线/);
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:true}})});
+    assert.equal(app.showKfonline,true);
+    app.OnClose();
+    assert.equal(app.showKfonline,false);
+    assert.match(app.chatTitle,/重连/);
+});
+
+test('late notice metadata cannot override a newer online event', () => {
+    const c=chat();c.app.getNotice();
+    c.app.OnMessage({data:JSON.stringify({type:'kfOnline',data:{id:'qa-agent',name:'小飞'}})});
+    finish(c.requests[0],{code:200,result:{nickname:'小飞',online:false}});
+    assert.equal(c.app.showKfonline,true);
+});
+
+test('initial metadata reports offline without pretending that an open socket means agent online', () => {
+    const c=chat();c.app.getNotice();
+    finish(c.requests[0],{code:200,result:{nickname:'小飞',online:false}});
+    assert.equal(c.app.showKfonline,false);
+    assert.match(c.app.chatTitle,/离线/);
+});
+
+test('an ended visitor session keeps its ended status when the socket closes', () => {
+    const {app}=chat();app.showKfonline=true;
+    app.OnMessage({data:JSON.stringify({type:'close'})});
+    app.OnClose();
+    assert.equal(app.showKfonline,false);
+    assert.match(app.chatTitle,/会话已结束/);
+});
+
+test('visitor time labels group nearby messages and keep day boundaries', () => {
+    const {app}=chat();
+    app.msgList=[
+        {time:'2026-10-21 23:59:00'}, {time:'2026-10-22 00:01:00'},
+        {time:'2026-10-22 00:02:00'}, {time:'2026-10-22 00:08:00'},
+        {time:'invalid'},
+    ];
+    assert.ok(app.messageTime(app.msgList[0]));
+    assert.ok(app.messageTime(app.msgList[1]));
+    assert.equal(app.messageTime(app.msgList[2]),'');
+    assert.ok(app.messageTime(app.msgList[3]));
+    assert.equal(app.messageTime(app.msgList[4]),'');
+});
+
+test('visitor sends preserve intentional line breaks', () => {
+    const c=chat();c.app.messageContent='first\nsecond';c.app.chatToUser();
+    assert.equal(c.requests[0].data.content,'first\nsecond');
+});
+
+test('composer does not send during Chinese composition or Shift+Enter', () => {
+    const {app}=chat();let sends=0;
+    app.chatToUser=()=>sends++;
+    app.onComposerKeydown({key:'Enter',isComposing:true});
+    app.onComposerKeydown({key:'Enter',keyCode:229});
+    app.onComposerKeydown({key:'Enter',shiftKey:true});
+    assert.equal(sends,0);
+});
+
+test('Enter sends on a desktop keyboard and keeps the mobile return key for new lines', () => {
+    for(const touch of [false,true]){
+        const {app}=chat('visitor',{touch});let sends=0,prevented=false;
+        app.chatToUser=()=>sends++;
+        app.onComposerKeydown({key:'Enter',preventDefault(){prevented=true;}});
+        assert.equal(sends,touch?0:1);
+        assert.equal(prevented,!touch);
+    }
+});
+
+test('emoji selection keeps the draft within the input length limit', () => {
+    const {app}=chat();app.face=[{emoji:'😊'}];
+    app.messageContent='a'.repeat(99);app.faceIconClick(0);
+    assert.equal(app.messageContent.length,99);
+    app.messageContent='a'.repeat(98);app.faceIconClick(0);
+    assert.equal(app.messageContent.length,100);
+    assert.ok(app.messageContent.endsWith('😊'));
+});
 
 for (const [name, initialId, expected] of [['explicit identity overrides cache', 'new-account', 'new-account'], ['cache restores an unspecified identity', '', 'previous-account']]) {
     test(name, () => {

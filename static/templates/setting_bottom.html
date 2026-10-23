@@ -9,6 +9,7 @@
         el: '#app',
         delimiters:["<{","}>"],
         data: {
+            kefuUploadToken:localStorage.getItem("token") || "",
             host:getBaseUrl(),
             deployCode:"",
             kefuInfo:{},

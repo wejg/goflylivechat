@@ -59,6 +59,10 @@ import (
 //		})
 //	}
 func PostVisitorLogin(c *gin.Context) {
+	if common.AppChatEnabled() {
+		c.JSON(403, gin.H{"code": 403, "msg": "请从 App 内进入客服"})
+		return
+	}
 
 	avator := ""
 	userAgent := c.GetHeader("User-Agent")
@@ -170,6 +174,10 @@ func PostVisitorLogin(c *gin.Context) {
 func GetVisitor(c *gin.Context) {
 	visitorId := c.Query("visitorId")
 	vistor := models.FindVisitorByVistorId(visitorId)
+	if common.AppChatEnabled() && !visitorScopeAllows(c, visitorId) {
+		c.JSON(403, gin.H{"code": 403, "msg": "无权访问该会话"})
+		return
+	}
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",

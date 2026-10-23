@@ -1,2 +1,5 @@
 .idea
 imaptool.exe
+.env
+scripts/deploy.env
+__pycache__/

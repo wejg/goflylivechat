@@ -24,7 +24,7 @@ func NewMidLogger() gin.HandlerFunc {
 		reqMethod := c.Request.Method
 
 		// 请求路由
-		reqUri := c.Request.RequestURI
+		reqUri := c.Request.URL.Path
 
 		// 状态码
 		statusCode := c.Writer.Status()

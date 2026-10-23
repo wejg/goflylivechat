@@ -3,6 +3,7 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 	"goflylivechat/models"
+	"goflylivechat/ws"
 )
 
 func GetNotice(c *gin.Context) {
@@ -26,6 +27,7 @@ func GetNotice(c *gin.Context) {
 			"offline":   offlineMessage.ConfValue,
 			"avatar":    user.Avator,
 			"nickname":  user.Nickname,
+			"online":    ws.IsKefuOnline(user.Name),
 			"allNotice": allNotice.ConfValue,
 		},
 	})

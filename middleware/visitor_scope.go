@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
+	"goflylivechat/common"
 	"goflylivechat/tools"
 )
 
@@ -14,6 +15,10 @@ import (
 // visitor_id 会出现在 widget URL、Referer 和前端 localStorage 里，
 // 泄露路径很多，不能当成鉴权凭据，所以必须带 token。
 func VisitorScope(c *gin.Context) {
+	if common.AppChatEnabled() {
+		ChatActor(c)
+		return
+	}
 	visitorID := requestVisitorID(c)
 	if visitorID == "" {
 		c.JSON(200, gin.H{"code": 400, "msg": "visitor_id不能为空"})

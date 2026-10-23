@@ -140,6 +140,7 @@
             },
             logout(){
                 this.chatLoaded=false;
+                $.ajax({url:"/agent/session",type:"DELETE"});
                 localStorage.removeItem("token");
                 this.openIframeUrl('/login');
             },

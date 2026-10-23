@@ -2,6 +2,41 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { retain, visibleRange } = require('../static/js/chat-window.js');
 const rows = (from, count) => Array.from({length:count}, (_,i)=>({id:from+i}));
+
+test('scroll events never fetch older history, including a latest page shorter than the viewport', () => {
+    const {component}=require('../static/js/chat-window.js');
+    for(const scrollHeight of [240,1000]){
+        const requests=[];
+        const state={_dead:false,_restoring:false,_edge:'',older:true,newer:false,loading:false,
+            items:rows(100,5),key:item=>item.id,
+            $el:{scrollTop:0,clientHeight:600,scrollHeight},
+            remember(){},updateRange(){},publish(){},request:direction=>requests.push(direction)};
+        component.methods.onScroll.call(state);
+        state.items.push({id:105});
+        component.methods.onScroll.call(state);
+        assert.deepEqual(requests,[]);
+    }
+});
+
+test('explicit older request preserves the reading anchor and respects the loading lock', () => {
+    const {component}=require('../static/js/chat-window.js');
+    const requests=[];let anchors=0;
+    const state={loading:false,_bottom:true,remember(){anchors++;},$emit:event=>requests.push(event)};
+    component.methods.request.call(state,'older');
+    assert.deepEqual(requests,['older']);assert.equal(anchors,1);assert.equal(state._bottom,false);
+    state.loading=true;component.methods.request.call(state,'older');
+    assert.deepEqual(requests,['older']);
+});
+
+test('scrolling to the newer edge can still fill a retained history window', () => {
+    const {component}=require('../static/js/chat-window.js');
+    const requests=[];
+    const state={_dead:false,_restoring:false,_edge:'',older:true,newer:true,loading:false,
+        items:rows(100,5),key:item=>item.id,$el:{scrollTop:400,clientHeight:600,scrollHeight:1000},
+        remember(){},updateRange(){},publish(){},request:event=>requests.push(event)};
+    component.methods.onScroll.call(state);component.methods.onScroll.call(state);
+    assert.deepEqual(requests,['newer']);
+});
 test('older pages evict the newest data while keeping the pending send', () => {
     const pending={sending:true,content:'draft'};
     const result=retain(rows(1,220).concat(pending),'older');
@@ -45,4 +80,16 @@ test('a gesture without scrolling does not disable following the bottom or disca
             assert.equal(state._anchor,anchor);
         }
     } finally {global.cancelAnimationFrame=cancel;}
+});
+
+test('measuring unchanged rows does not write scrollTop and interrupt native momentum', () => {
+    const {component}=require('../static/js/chat-window.js');
+    let writes=0;
+    const el={clientHeight:300,scrollHeight:800,clientTop:0,get scrollTop(){return 500;},set scrollTop(value){writes++;}};
+    const state={_dead:false,$el:el,_sizes:new Map(),_settle:0,_bottom:true,
+        rows:()=>[],heights:()=>[],updateRange:()=>false,remember(){},publish(){}};
+    const raf=global.requestAnimationFrame,caf=global.cancelAnimationFrame;
+    global.requestAnimationFrame=()=>1;global.cancelAnimationFrame=()=>{};
+    try {component.methods.measure.call(state);assert.equal(writes,0);}
+    finally {global.requestAnimationFrame=raf;global.cancelAnimationFrame=caf;}
 });

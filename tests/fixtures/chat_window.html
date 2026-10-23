@@ -1,5 +1,5 @@
 <!doctype html><meta charset="utf-8"><title>可变高度列表验证</title>
-<script src="/static/cdn/vue/2.6.11/vue.min.js"></script><script src="/static/js/chat-window.js?v=1"></script>
+<script src="/static/cdn/vue/2.6.11/vue.min.js"></script><script src="/static/js/chat-window.js?v=4"></script>
 <link rel="stylesheet" href="/static/css/chat-window.css?v=1"><style>body{font:16px sans-serif}.qa-list{height:420px;width:460px;border:1px solid #ccc}.qa-message{padding:8px;background:#f5f5f5;margin:4px}img{display:block;width:50px}</style>
 <div id="test"><h2>可变高度消息列表验证</h2><button @click="older">向前补20条并回收尾部</button><button @click="large=!large">改变图片高度</button>
 <chat-window class="qa-list" :items="items" :older="true" :newer="newer" @older="older" @newer="later" @latest="latest"><template slot-scope="row"><div class="qa-message"><span>消息 {{row.item.id}}</span><img src="/static/images/1.jpg" :style="{height:large?'140px':'30px'}"></div></template></chat-window></div>

@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/zh-five/xdaemon"
+	"goflylivechat/common"
 	"goflylivechat/middleware"
 	"goflylivechat/models"
 	"goflylivechat/router"
@@ -61,7 +62,18 @@ func run() {
 	tools.Logger().Println("Starting server...\nURL: http://" + baseServer)
 
 	// 服务必须有可用的数据库才有意义，这里连不上就退出。
+	if err := common.ValidateAppChatConfig(); err != nil {
+		log.Fatal(err)
+	}
 	models.MustConnect()
+	if common.AppChatEnabled() {
+		if err := models.EnsureChatSchema(); err != nil {
+			log.Fatal("chat schema: ", err)
+		}
+		if err := models.EnsureUploadSchema(); err != nil {
+			log.Fatal("upload schema: ", err)
+		}
+	}
 
 	// 默认 release 模式；需要排查问题时设 GIN_MODE=debug。
 	if os.Getenv("GIN_MODE") == "" {
@@ -77,6 +89,7 @@ func run() {
 		log.Println("set trusted proxies:", err)
 	}
 	engine.LoadHTMLGlob("static/templates/*")
+	engine.Use(middleware.PrivateUploadGuard)
 	engine.Use(middleware.StaticCache("31536000"))
 	engine.Use(middleware.Gzip())
 	engine.Static("/static", "./static")

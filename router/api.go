@@ -5,14 +5,21 @@ import (
 	"goflylivechat/controller"
 	"goflylivechat/middleware"
 	"goflylivechat/ws"
+	"net/http"
 )
 
 func InitApiRouter(engine *gin.Engine) {
+	engine.POST("/visitor/session", controller.PostAppSession)
+	engine.GET("/visitor/session", controller.GetAppSession)
+	engine.DELETE("/visitor/session", controller.DeleteAppSession)
+	engine.GET("/attachments/:id", middleware.AttachmentActor, controller.GetPrivateUpload)
+	engine.POST("/agent/session", middleware.JwtApiMiddleware, controller.SetAgentSession)
+	engine.DELETE("/agent/session", controller.DeleteAgentSession)
 	//路由分组
 	v2 := engine.Group("/2")
 	{
 		//发送单条信息
-		v2.POST("/message", middleware.Ipblack, controller.SendMessageV2)
+		v2.POST("/message", middleware.AppVisitor, middleware.Ipblack, controller.SendMessageV2)
 		//关闭连接
 		v2.GET("/message_close", middleware.JwtApiMiddleware, controller.SendCloseMessageV2)
 		//分页查询消息
@@ -29,9 +36,9 @@ func InitApiRouter(engine *gin.Engine) {
 
 	engine.GET("/message_notice", middleware.JwtApiMiddleware, controller.SendVisitorNotice)
 	//上传文件
-	engine.POST("/uploadimg", middleware.Ipblack, controller.UploadImg)
+	engine.POST("/uploadimg", uploadBodyLimit, middleware.ChatActor, middleware.Ipblack, controller.UploadImg)
 	//上传文件
-	engine.POST("/uploadfile", middleware.Ipblack, controller.UploadFile)
+	engine.POST("/uploadfile", uploadBodyLimit, middleware.ChatActor, middleware.Ipblack, controller.UploadFile)
 	//获取未读消息数
 	engine.GET("/message_status", middleware.VisitorScope, controller.GetVisitorMessageStatus)
 	engine.GET("/message_unread", middleware.JwtApiMiddleware, controller.GetKefuUnreadMessages)
@@ -91,4 +98,9 @@ func InitApiRouter(engine *gin.Engine) {
 	}
 	//微信接口
 	engine.GET("/micro_program", middleware.JwtApiMiddleware, controller.GetCheckWeixinSign)
+}
+
+func uploadBodyLimit(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 21<<20)
+	c.Next()
 }

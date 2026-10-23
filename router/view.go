@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"goflylivechat/common"
 	"net/http"
 )
 
@@ -32,6 +33,8 @@ func PageMain(c *gin.Context) {
 
 // Customer chat interface
 func PageChat(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
+	c.Header("Referrer-Policy", "no-referrer")
 	referralSource := c.Query("refer") // More clear variable name
 
 	if referralSource == "" {
@@ -42,7 +45,8 @@ func PageChat(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "chat_page.html", gin.H{
-		"Refer": referralSource, // Keeping original template variable name
+		"AppChatEnabled": common.AppChatEnabled(),
+		"Refer":          referralSource, // Keeping original template variable name
 	})
 }
 

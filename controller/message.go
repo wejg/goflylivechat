@@ -29,6 +29,15 @@ func messageIdempotencyKey(c *gin.Context) string {
 
 func SendMessageV2(c *gin.Context) {
 	fromId := c.PostForm("from_id")
+	if common.AppChatEnabled() {
+		id, _ := c.Get("visitor_id")
+		trusted, ok := id.(string)
+		if !ok || trusted == "" || (fromId != "" && fromId != trusted) {
+			c.JSON(403, gin.H{"code": 403, "msg": "无权使用该访客身份"})
+			return
+		}
+		fromId = trusted
+	}
 	toId := c.PostForm("to_id")
 	content := c.PostForm("content")
 	cType := c.PostForm("type")
@@ -61,6 +70,10 @@ func SendMessageV2(c *gin.Context) {
 		return
 	}
 
+	if err := checkMessageUploads(content, vistorInfo.VisitorId); err != nil {
+		c.JSON(403, gin.H{"code": 403, "msg": err.Error()})
+		return
+	}
 	if existing, found, err := models.FindMessageByClientID(clientMessageID); err != nil {
 		c.JSON(200, gin.H{"code": 500, "msg": "消息查询失败，请重试"})
 		return
@@ -144,7 +157,7 @@ func SendKefuMessage(c *gin.Context) {
 	kefuInfo = models.FindUser(fromId.(string))
 	vistorInfo = models.FindVisitorByVistorId(toId)
 
-	if kefuInfo.ID == 0 || vistorInfo.ID == 0 {
+	if kefuInfo.ID == 0 || vistorInfo.ID == 0 || (common.AppChatEnabled() && vistorInfo.ToId != kefuInfo.Name) {
 		c.JSON(200, gin.H{
 			"code": 400,
 			"msg":  "用户不存在",
@@ -152,6 +165,10 @@ func SendKefuMessage(c *gin.Context) {
 		return
 	}
 
+	if err := checkMessageUploads(content, vistorInfo.VisitorId); err != nil {
+		c.JSON(403, gin.H{"code": 403, "msg": err.Error()})
+		return
+	}
 	if existing, found, err := models.FindMessageByClientID(clientMessageID); err != nil {
 		c.JSON(200, gin.H{"code": 500, "msg": "消息查询失败，请重试"})
 		return
@@ -308,7 +325,12 @@ func saveUpload(c *gin.Context, f *multipart.FileHeader, allowed map[string]bool
 		c.JSON(500, gin.H{"code": 500, "msg": "上传失败!"})
 		return "", "", false
 	}
-	return filepath, fileExt, true
+	publicPath, ok := privateUploadPath(c, filepath, f.Filename)
+	if !ok {
+		_ = os.Remove(filepath)
+		return "", "", false
+	}
+	return publicPath, fileExt, true
 }
 
 func UploadFile(c *gin.Context) {

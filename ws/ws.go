@@ -16,14 +16,15 @@ import (
 )
 
 type User struct {
-	Conn       *websocket.Conn
-	Name       string
-	Id         string
-	Avator     string
-	To_id      string
-	Role_id    string
-	Mux        sync.Mutex
-	UpdateTime time.Time
+	Conn           *websocket.Conn
+	Name           string
+	Id             string
+	Avator         string
+	To_id          string
+	Role_id        string
+	Mux            sync.Mutex
+	UpdateTime     time.Time
+	AppSessionHash string
 }
 
 func (u *User) Touch() {
@@ -91,6 +92,10 @@ const (
 func WriteTo(u *User, data []byte) error {
 	if u == nil || u.Conn == nil {
 		return errors.New("nil connection")
+	}
+	if u.AppSessionHash != "" && !models.AppSessionLeaseValid(u.AppSessionHash) {
+		_ = u.Conn.Close()
+		return errors.New("visitor session expired")
 	}
 	u.Mux.Lock()
 	defer u.Mux.Unlock()
@@ -167,6 +172,21 @@ func WsServerBackend() {
 			continue
 		}
 
+		if msg.user != nil && msg.user.AppSessionHash != "" {
+			if !models.AppSessionLeaseValid(msg.user.AppSessionHash) {
+				_ = msg.user.Conn.Close()
+				continue
+			}
+			switch typeMsg.Type {
+			case "ping":
+				typeMsg.Data, _ = json.Marshal("visitor:" + msg.user.Id)
+			case "inputing":
+				typeMsg.Data, _ = json.Marshal(map[string]string{"from": msg.user.Id, "to": msg.user.RouteTo()})
+				msg.content, _ = json.Marshal(TypeMessage{Type: "inputing", Data: map[string]string{"from": msg.user.Id, "to": msg.user.RouteTo()}})
+			default:
+				continue
+			}
+		}
 		switch typeMsg.Type {
 		case "ping":
 			var data string
@@ -176,7 +196,7 @@ func WsServerBackend() {
 					visitor.Touch()
 				}
 			}
-			_ = WriteJSON(msg.user, TypeMessage{Type: "pong"})
+			_ = WriteJSON(msg.user, TypeMessage{Type: "pong", Data: map[string]bool{"online": IsKefuOnline(msg.user.RouteTo())}})
 		case "inputing":
 			var data struct {
 				From string `json:"from"`
