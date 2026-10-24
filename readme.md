@@ -109,7 +109,7 @@ bash scripts/deploy-linux.sh
 
 脚本会安装 Docker、生成独立生产密钥、本机构建并上传应用镜像、启动 MariaDB、首次初始化并替换默认客服密码，最后等待后台页面健康检查。自动化环境也可通过 `DEPLOY_HOST` 等环境变量配置；`SSH_PASSWORD` 环境变量模式需要本机安装 `sshpass`。高级配置项见 `scripts/deploy.env.example`，无需复制模板。
 
-默认目录 `/opt/goflylivechat`，后台 `http://服务器IP:8081/login`，账号 `agent`，初始随机密码在部署输出以及服务器的 `initial-admin-password.txt` 中。云安全组需放行 TCP 8081（修改端口时相应调整）；数据库不发布到宿主机端口。远端需能访问 Docker 官方软件源及 Compose 中的 MariaDB 镜像地址。HTTPS 和域名反代需另行配置。
+默认目录 `/opt/goflylivechat`，后台 `http://服务器IP:8081/login`，账号 `agent`，初始随机密码在部署输出以及服务器的 `initial-admin-password.txt` 中。云安全组需放行 TCP 8081（修改端口时相应调整）。数据库发布到宿主机 TCP 3306，外网客户端连接服务器 IP、数据库 `goflychat`、用户名 `goflychat`，密码取服务器 `.env` 的 `GOFLY_DB_PASSWORD`；服务器防火墙及云安全组需放行 3306，建议仅允许你的客户端 IP。远端需能访问 Docker 官方软件源及 Compose 中的 MariaDB 镜像地址。HTTPS 和域名反代需另行配置。
 
 重复运行同一条命令即可更新应用，保留远端 `.env`、密码、数据库、安装锁、附件和头像；不会上传本机开发 `.env`。后续更改端口、允许来源或 App 接入配置，请修改服务器 `.env` 后重跑。更新会重建应用容器，已有聊天连接可能短暂中断；更新前请自行备份数据库和数据卷。脚本不执行数据删除或自动数据库回滚。
 
@@ -128,6 +128,10 @@ docker compose -p goflylivechat -f docker-compose.yml -f compose.production.yml 
 ### Unread messages
 
 The online and recent visitor lists show unread incoming message counts; the Chat menu shows their total, including offline visitors. Counts are stored in the database and restored after refreshing or signing in again. Opening a conversation marks incoming messages through its newest displayed message ID as read. Messages received while the chat is hidden stay unread. Existing messages whose database status is still `unread` are included in the initial counts.
+
+访客列表上方的“一键已读”会将当前客服未读汇总中的访客来信批量设为已读，包括离线访客，并刷新访客角标和聊天入口总数；其他客服的会话、客服发出的消息及汇总之后新到的消息保持原状态。操作失败时保留未读提示，可重试。
+
+客服离线时，同一访客在当前客服人工回复前仅收到一次离线提醒；刷新、重连、服务重启及继续留言不会重复提醒。人工回复后，下一轮离线留言可以再次提醒；关键词自动回复不会重置这一轮咨询，自动回复也不会清除用户来信的未读状态。仍使用后台配置的离线文案，客服在线状态仍以 WebSocket 连接为准。
 
 With a customer service token, `GET /message_unread` returns `result.counts` keyed by visitor ID and `result.total`. `GET /message_status?visitor_id=...` returns the authenticated recipient's incoming unread count. `POST /message_status` requires `visitor_id` and a positive `last_message_id`; it marks only incoming messages through that ID as read. Both message-status endpoints also accept the visitor's own token, with the direction reversed, and enforce conversation ownership.
 

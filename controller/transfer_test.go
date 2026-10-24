@@ -292,7 +292,7 @@ func TestAutoReplyPushesOnlySavedMessageWithItsID(t *testing.T) {
 	if err := models.DB.Create(&reply).Error; err != nil {
 		t.Fatal(err)
 	}
-	ws.VisitorAutoReply(f.visitor, f.from, "hello")
+	ws.VisitorAutoReply(f.visitor, f.from, "hello", 0)
 	var saved models.Message
 	models.DB.Where("visitor_id=? AND mes_type='kefu'", f.visitor.VisitorId).Last(&saved)
 	for _, conn := range []*websocket.Conn{agent, guest} {
@@ -333,7 +333,7 @@ func TestAutoReplyDoesNotPushWhenSaveFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	transferReadOnlyDatabase(t)
-	ws.VisitorAutoReply(f.visitor, f.from, "hello")
+	ws.VisitorAutoReply(f.visitor, f.from, "hello", 0)
 	for _, conn := range []*websocket.Conn{agent, guest} {
 		conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		if _, _, err := conn.ReadMessage(); err == nil {
@@ -354,7 +354,7 @@ func TestOfflineAutoReplyUsesSavedIDAndDoesNotPushOnSaveFailure(t *testing.T) {
 			if readOnly {
 				transferReadOnlyDatabase(t)
 			}
-			ws.VisitorAutoReply(f.visitor, f.from, "no matching reply")
+			ws.VisitorAutoReply(f.visitor, f.from, "no matching reply", 0)
 			if readOnly {
 				guest.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 				if _, _, err := guest.ReadMessage(); err == nil {

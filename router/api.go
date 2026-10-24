@@ -44,6 +44,7 @@ func InitApiRouter(engine *gin.Engine) {
 	engine.GET("/message_unread", middleware.JwtApiMiddleware, controller.GetKefuUnreadMessages)
 	//设置消息已读
 	engine.POST("/message_status", middleware.VisitorScope, controller.MarkVisitorMessageRead)
+	engine.POST("/message_read_all", middleware.JwtApiMiddleware, controller.MarkKefuMessagesRead)
 
 	//获取客服信息
 	engine.POST("/kefuinfo_client", middleware.JwtApiMiddleware, controller.PostKefuClient)

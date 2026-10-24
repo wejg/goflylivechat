@@ -48,6 +48,7 @@ CREATE TABLE `message` (
  `updated_at` timestamp NULL DEFAULT NULL,
  `deleted_at` timestamp NULL DEFAULT NULL,
  `mes_type` enum('kefu','visitor') NOT NULL DEFAULT 'visitor',
+ `auto_reply_type` varchar(20) NOT NULL DEFAULT '',
  `status` enum('read','unread') NOT NULL DEFAULT 'unread',
  PRIMARY KEY (`id`),
  KEY `kefu_id` (`kefu_id`),

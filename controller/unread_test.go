@@ -19,10 +19,78 @@ import (
 type unreadResponse struct {
 	Code   int `json:"code"`
 	Result struct {
-		Unread uint            `json:"unread"`
-		Total  uint            `json:"total"`
-		Counts map[string]uint `json:"counts"`
+		Unread        uint            `json:"unread"`
+		Total         uint            `json:"total"`
+		Counts        map[string]uint `json:"counts"`
+		LastMessageID uint            `json:"last_message_id"`
 	} `json:"result"`
+}
+
+func TestMarkAllReadIsScopedAndPreservesNewMessages(t *testing.T) {
+	engine, messages := unreadFixture(t)
+	summary := unreadRequest(t, engine, "GET", "/message_unread", nil, false)
+	if summary.Result.LastMessageID != messages[4].ID {
+		t.Fatalf("unexpected read boundary: %+v", summary)
+	}
+	newMessage := models.Message{KefuId: "unread-agent", VisitorId: "unread-a", Content: "later", MesType: "visitor", Status: "unread"}
+	if err := models.DB.Create(&newMessage).Error; err != nil {
+		t.Fatal(err)
+	}
+	response := unreadRequest(t, engine, "POST", "/message_read_all", url.Values{"last_message_id": {fmt.Sprint(summary.Result.LastMessageID)}}, false)
+	if response.Code != 200 {
+		t.Fatalf("mark all failed: %+v", response)
+	}
+	for index, message := range append(messages, newMessage) {
+		var stored models.Message
+		if err := models.DB.First(&stored, message.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		want := "read"
+		if index == 2 || index == 3 || index == 5 {
+			want = "unread"
+		}
+		if stored.Status != want {
+			t.Fatalf("message %d status=%s want=%s", stored.ID, stored.Status, want)
+		}
+	}
+	summary = unreadRequest(t, engine, "GET", "/message_unread", nil, false)
+	if summary.Result.Total != 1 || summary.Result.Counts["unread-a"] != 1 {
+		t.Fatalf("new message was cleared: %+v", summary)
+	}
+}
+
+func TestMarkAllReadUsesCurrentVisitorOwnership(t *testing.T) {
+	engine, messages := unreadFixture(t)
+	if err := models.DB.Model(&models.Visitor{}).Where("visitor_id=?", "unread-a").Update("to_id", "other-agent").Error; err != nil {
+		t.Fatal(err)
+	}
+	response := unreadRequest(t, engine, "POST", "/message_read_all", url.Values{"last_message_id": {fmt.Sprint(messages[4].ID)}}, false)
+	if response.Code != 200 {
+		t.Fatalf("mark all failed: %+v", response)
+	}
+	var stored models.Message
+	models.DB.First(&stored, messages[0].ID)
+	if stored.Status != "unread" {
+		t.Fatal("transferred visitor was marked read")
+	}
+}
+
+func TestMarkAllReadRejectsInvalidBoundaryAndVisitorTokens(t *testing.T) {
+	engine, _ := unreadFixture(t)
+	for _, boundary := range []string{"", "0", "-1", "invalid", "4294967296"} {
+		response := unreadRequest(t, engine, "POST", "/message_read_all", url.Values{"last_message_id": {boundary}}, false)
+		if response.Code != 400 {
+			t.Fatalf("boundary %q accepted: %+v", boundary, response)
+		}
+	}
+	response := unreadRequest(t, engine, "POST", "/message_read_all", url.Values{"last_message_id": {"999999"}}, true)
+	if response.Code != 400 {
+		t.Fatalf("visitor token accepted: %+v", response)
+	}
+	summary := unreadRequest(t, engine, "GET", "/message_unread", nil, false)
+	if summary.Result.Total != 3 {
+		t.Fatalf("invalid request changed unread state: %+v", summary)
+	}
 }
 
 func unreadFixture(t *testing.T) (*gin.Engine, []models.Message) {

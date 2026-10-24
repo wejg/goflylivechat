@@ -20,6 +20,11 @@ type migration struct {
 func migrations() []migration {
 	return []migration{
 		{
+			name:    "message 区分离线、关键词及人工回复",
+			applied: func() bool { return hasColumn("message", "auto_reply_type") },
+			stmt:    "ALTER TABLE `message` ADD COLUMN `auto_reply_type` varchar(20) NOT NULL DEFAULT ''",
+		},
+		{
 			name:    "message 增加客户端幂等键",
 			applied: func() bool { return hasColumn("message", "client_message_id") },
 			stmt:    "ALTER TABLE `message` ADD COLUMN `client_message_id` varchar(100) NULL",

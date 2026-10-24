@@ -14,7 +14,7 @@ function chat(server = { messages: [], nextId: 1 }) {
         for (const m of server.messages) {
             if (m.mes_type === 'visitor' && m.status === 'unread') counts[m.visitor_id] = (counts[m.visitor_id] || 0) + 1;
         }
-        return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0) };
+        return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0), last_message_id: Math.max(0, ...server.messages.filter(m => m.mes_type === 'visitor' && m.status === 'unread').map(m => m.id)) };
     }
     function ajax(request) {
         requests.push(request);
@@ -29,10 +29,25 @@ function chat(server = { messages: [], nextId: 1 }) {
             }
             request.success({ code: 200 });
         }
+        if (request.url === '/message_read_all') {
+            if (!server.deferReadAll) finishReadAll(request);
+        }
         if (request.url === '/2/messagesPages') {
             request.reply = { code: 200, result: { list: server.messages.filter(m => m.visitor_id === request.data.visitor_id).map(m => ({ ...m })).reverse() } };
             if (!server.deferHistory) request.success(request.reply);
         }
+    }
+    function finishReadAll(request) {
+        if (server.failRead) {
+            request.success({ code: 500, msg: 'test database write failed' });
+            request.complete();
+            return;
+        }
+        for (const message of server.messages) {
+            if (message.mes_type === 'visitor' && message.id <= request.data.last_message_id) message.status = 'read';
+        }
+        request.success({ code: 200 });
+        request.complete();
     }
     const context = vm.createContext({
         ChatWindow: require('../static/js/chat-window.js'),
@@ -55,7 +70,7 @@ function chat(server = { messages: [], nextId: 1 }) {
     app.visitor.visitor_id = 'a';
     app.users = [{ uid: 'a' }, { uid: 'b' }];
     return {
-        app, context, server, requests, notifications, errors,
+        app, context, server, requests, notifications, errors, finishReadAll,
         receive(id = 'b', isKefu = 'no') {
             const messageId = server.nextId++;
             server.messages.push({ id: messageId, visitor_id: id, mes_type: isKefu === 'yes' ? 'kefu' : 'visitor', status: 'unread', content: 'hello' });
@@ -72,6 +87,55 @@ function chat(server = { messages: [], nextId: 1 }) {
         count(id = 'b') { return app.unreadVisitors[id] || 0; },
     };
 }
+
+test('one click marks online and offline incoming messages read and updates the menu total', () => {
+    const c = chat();
+    c.receive(); c.receive('offline'); c.receive('b', 'yes');
+    c.app.markAllMessagesRead();
+    assert.equal(c.count(), 0);
+    assert.equal(c.count('offline'), 0);
+    assert.equal(c.server.messages[2].status, 'unread');
+    assert.deepEqual(JSON.parse(JSON.stringify(c.notifications.at(-1))), { type: 'unread_count', count: 0 });
+    assert.equal(c.app.markingAllRead, false);
+    const restored = chat(c.server);
+    restored.app.getUnreadMessages();
+    assert.equal(restored.count(), 0);
+});
+
+test('one click keeps later messages unread and prevents duplicate submissions', () => {
+    const c = chat();
+    c.receive(); c.server.deferReadAll = true;
+    c.app.markAllMessagesRead();
+    const request = c.requests.findLast(request => request.url === '/message_read_all');
+    c.receive(); c.app.markAllMessagesRead();
+    assert.equal(c.requests.filter(request => request.url === '/message_read_all').length, 1);
+    assert.equal(request.data.last_message_id, 1);
+    c.finishReadAll(request);
+    assert.equal(c.server.messages[0].status, 'read');
+    assert.equal(c.server.messages[1].status, 'unread');
+    assert.equal(c.count(), 1);
+});
+
+test('one click preserves unread counts after a server or network failure', () => {
+    const c = chat();
+    c.receive(); c.server.failRead = true;
+    c.app.markAllMessagesRead();
+    assert.equal(c.count(), 1);
+    assert.equal(c.errors.at(-1).type, 'error');
+    assert.equal(c.app.markingAllRead, false);
+    c.server.deferReadAll = true;
+    c.app.markAllMessagesRead();
+    const request = c.requests.findLast(request => request.url === '/message_read_all');
+    request.error(); request.complete();
+    assert.equal(c.count(), 1);
+    assert.equal(c.app.markingAllRead, false);
+});
+
+test('one click does nothing when there are no unread incoming messages', () => {
+    const c = chat();
+    c.app.markAllMessagesRead();
+    assert.equal(c.requests.length, 0);
+});
 
 test('counts every incoming message and retains counts across list switching and refresh', () => {
     const c = chat();

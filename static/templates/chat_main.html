@@ -39,6 +39,9 @@
         <el-row>
             <el-col :span="5">
                 <div class="chatBg chatLeft">
+                    <div style="padding:0 12px;text-align:right">
+                        <el-button type="text" icon="el-icon-check" :loading="markingAllRead" :disabled="!unreadLastMessageId" @click="markAllMessagesRead">一键已读</el-button>
+                    </div>
                     <el-tabs v-model="leftTabActive" @tab-click="handleTabClick">
                         <el-tab-pane label="在线访客" name="first">
                             <el-row v-for="item in users" :key="item.uid" class="">
@@ -326,6 +329,8 @@
             users:[],
             unreadVisitors:{},
             unreadRequest:0,
+            unreadLastMessageId:0,
+            markingAllRead:false,
             usersMap:[],
             server:getWsBaseUrl()+"/ws_kefu?token="+localStorage.getItem("token"),
             //server:getWsBaseUrl()+"/chat_server",
@@ -760,8 +765,28 @@
                     success:(res)=>{
                         if(request!=this.unreadRequest || res.code!=200){ return; }
                         this.unreadVisitors=res.result.counts;
+                        this.unreadLastMessageId=res.result.last_message_id || 0;
                         window.parent.postMessage({type:"unread_count",count:res.result.total},window.location.origin);
                     }
+                });
+            },
+            markAllMessagesRead(){
+                if(this.markingAllRead || !this.unreadLastMessageId){ return; }
+                this.markingAllRead=true;
+                $.ajax({
+                    type:"post",
+                    url:"/message_read_all",
+                    data:{last_message_id:this.unreadLastMessageId},
+                    headers:{"token":localStorage.getItem("token")},
+                    success:(res)=>{
+                        if(res.code!=200){
+                            this.$message({message:res.msg,type:'error'});
+                            return;
+                        }
+                        this.getUnreadMessages();
+                    },
+                    error:()=>this.$message({message:"更新已读消息失败，请重试",type:'error'}),
+                    complete:()=>{this.markingAllRead=false;}
                 });
             },
             chatIsVisible(){

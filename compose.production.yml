@@ -1,7 +1,6 @@
 # 部署脚本叠加此文件，本地 docker-compose.yml 的使用方式保持不变。
 services:
   db:
-    ports: !reset []
     restart: unless-stopped
   app:
     image: goflylivechat:deploy

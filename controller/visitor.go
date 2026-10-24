@@ -291,11 +291,33 @@ func GetKefuUnreadMessages(c *gin.Context) {
 	}
 	counts := make(map[string]uint, len(rows))
 	var total uint
+	var lastMessageID uint
 	for _, row := range rows {
 		counts[row.VisitorId] = row.Unread
 		total += row.Unread
+		if row.LastMessageID > lastMessageID {
+			lastMessageID = row.LastMessageID
+		}
 	}
-	c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"counts": counts, "total": total}})
+	c.JSON(200, gin.H{"code": 200, "msg": "ok", "result": gin.H{"counts": counts, "total": total, "last_message_id": lastMessageID}})
+}
+
+func MarkKefuMessagesRead(c *gin.Context) {
+	kefuName := c.GetString("kefu_name")
+	if kefuName == "" {
+		c.JSON(200, gin.H{"code": 403, "msg": "无权更新已读消息"})
+		return
+	}
+	lastID, err := strconv.ParseUint(c.PostForm("last_message_id"), 10, 32)
+	if err != nil || lastID == 0 {
+		c.JSON(200, gin.H{"code": 400, "msg": "last_message_id必须是未读汇总的消息ID"})
+		return
+	}
+	if err := models.ReadKefuMessages(kefuName, uint(lastID)); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "更新已读消息失败"})
+		return
+	}
+	c.JSON(200, gin.H{"code": 200, "msg": "ok"})
 }
 
 // @Summary 获取客服的在线访客列表接口

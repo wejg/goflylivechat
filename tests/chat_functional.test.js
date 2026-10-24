@@ -23,13 +23,16 @@ function chat(kind = 'visitor', options = {}) {
         window: { location: { origin: 'http://localhost' }, parent: { postMessage() {} }, matchMedia: () => ({matches:!options.touch}) },
         document: { hidden: false },
         KEFU_ID: options.kefu || 'qa-agent',
-        APP_CHAT_ENABLED: false,
+        APP_CHAT_ENABLED: !!options.app,
+        ReconnectingWebSocket: class { close() {} },
+        WebSocket: {OPEN:1}, setInterval: () => 1,
         INITIAL_VISITOR_ID: options.initialId || '',
         INITIAL_VISITOR_NAME: '', INITIAL_VISITOR_AVATAR: '', REFER: 'VM regression',
         clearInterval() {}, console: { log() {} }, notify() {}, flashTitle() {}, $: jquery,
     });
     const result = vm.runInContext(script, context);
     const app = kind === 'agent' ? context.app : result;
+    const initConn=app.initConn;
     Object.assign(app, {
         $set: (object, key, value) => { object[key] = value; },
         $message: value => errors.push(value),
@@ -41,6 +44,7 @@ function chat(kind = 'visitor', options = {}) {
     app.visitor = { visitor_id: 'a', to_id: 'qa-agent', token: 'visitor-token', name: 'Guest' };
     return {
         app, requests, errors,
+        connect() { initConn.call(app); },
         history() { return requests.findLast(request => request.url === '/2/messagesPages'); },
         receive(id, content = `message ${id}`) {
             app.OnMessage({ data: JSON.stringify({ type: 'message', data: {
@@ -90,6 +94,53 @@ test('initial metadata reports offline without pretending that an open socket me
     finish(c.requests[0],{code:200,result:{nickname:'小飞',online:false}});
     assert.equal(c.app.showKfonline,false);
     assert.match(c.app.chatTitle,/离线/);
+});
+
+test('app session loads history before the socket opens and does not duplicate an in-flight first load', () => {
+    const c=chat('visitor',{app:true});
+    c.app.getAppSession();
+    finish(c.requests[0],{code:200,result:{visitor_id:'a',to_id:'qa-agent'}});
+    const initial=c.history();
+    assert.ok(initial, 'history must not wait for WebSocket');
+    c.app.OnOpen();
+    assert.equal(c.history(),initial);
+    history(initial,[3,2,1]);
+    assert.equal(c.app.historyReady,true);
+    assert.deepEqual(ids(c.app),[1,2,3]);
+    c.app.OnClose();c.app.OnOpen();
+    assert.notEqual(c.history(),initial);
+});
+
+test('session network failure is retryable without misreporting expired credentials', () => {
+    const c=chat('visitor',{app:true});c.app.getAppSession();
+    fail(c.requests[0]);
+    assert.equal(c.app.loadFailed,true);
+    assert.equal(c.app.sessionFailed,false);
+});
+
+test('first history failure exposes a retryable load failure rather than an empty ready chat', () => {
+    const c=chat();c.app.getHistoryMessage();
+    fail(c.history());
+    assert.equal(c.app.historyReady,false);
+    assert.equal(c.app.loadFailed,true);
+    c.app.getHistoryMessage();history(c.history(),[]);
+    assert.equal(c.app.historyReady,true);
+    assert.equal(c.app.loadFailed,false);
+});
+
+test('first offline heartbeat clears the initial connecting title', () => {
+    const c=chat();
+    c.app.OnMessage({data:JSON.stringify({type:'pong',data:{online:false}})});
+    assert.match(c.app.chatTitle,/离线/);
+});
+
+test('a timed-out socket shows reconnecting while keeping already loaded messages', () => {
+    const c=chat('visitor',{app:true});c.app.getHistoryMessage();history(c.history(),[1]);
+    c.connect();
+    c.app.socket.onconnecting({code:1006});
+    assert.match(c.app.chatTitle,/重连/);
+    assert.deepEqual(ids(c.app),[1]);
+    assert.equal(c.app.historyReady,true);
 });
 
 test('an ended visitor session keeps its ended status when the socket closes', () => {

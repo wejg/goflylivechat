@@ -227,30 +227,35 @@ func VisitorMessage(visitorId, content string, kefuInfo models.User, messageID u
 		},
 	})
 }
-func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content string) {
-	kefu, ok := KefuList.Get(kefuInfo.Name)
+func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content string, visitorMessageID uint) {
 	reply := models.FindReplyItemByUserIdTitle(kefuInfo.Name, content)
 	if reply.Content != "" {
 		time.Sleep(1 * time.Second)
-		messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, reply.Content, "kefu")
-		if err != nil {
+		messageID, err := models.CreateAutoReply(kefuInfo.Name, vistorInfo.VisitorId, reply.Content, "keyword", visitorMessageID)
+		if err != nil || messageID == 0 {
 			return
 		}
 		VisitorMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
 		KefuMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
+		return
 	}
-	if !ok || kefu == nil {
-		time.Sleep(1 * time.Second)
-		config := models.FindConfigByUserId(kefuInfo.Name, "OfflineMessage")
-		if config.ConfValue == "" || reply.Content != "" {
-			return
-		}
-		messageID, err := models.CreateMessage(kefuInfo.Name, vistorInfo.VisitorId, config.ConfValue, "kefu")
-		if err != nil {
-			return
-		}
-		VisitorMessage(vistorInfo.VisitorId, config.ConfValue, kefuInfo, messageID)
+	kefu, online := KefuList.Get(kefuInfo.Name)
+	if online && kefu != nil {
+		return
 	}
+	config := models.FindConfigByUserId(kefuInfo.Name, "OfflineMessage")
+	if config.ConfValue == "" {
+		return
+	}
+	time.Sleep(1 * time.Second)
+	if kefu, online = KefuList.Get(kefuInfo.Name); online && kefu != nil {
+		return
+	}
+	messageID, err := models.CreateAutoReply(kefuInfo.Name, vistorInfo.VisitorId, config.ConfValue, "offline", visitorMessageID)
+	if err != nil || messageID == 0 {
+		return
+	}
+	VisitorMessage(vistorInfo.VisitorId, config.ConfValue, kefuInfo, messageID)
 }
 func CleanVisitorExpire() {
 	go func() {

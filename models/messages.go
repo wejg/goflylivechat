@@ -15,6 +15,7 @@ type Message struct {
 	MesType         string  `json:"mes_type"`
 	Status          string  `json:"status"`
 	ClientMessageID *string `json:"-" gorm:"column:client_message_id"`
+	AutoReplyType   string  `json:"-"`
 }
 type MessageKefu struct {
 	Model
@@ -31,12 +32,48 @@ type MessageKefu struct {
 }
 
 func CreateMessage(kefuID string, visitorID string, content string, mesType string, clientMessageID ...string) (uint, error) {
+	return createMessage(kefuID, visitorID, content, mesType, "", 0, clientMessageID...)
+}
+
+func CreateAutoReply(kefuID, visitorID, content, replyType string, visitorMessageID uint) (uint, error) {
+	if replyType != "offline" && replyType != "keyword" {
+		return 0, fmt.Errorf("invalid auto reply type")
+	}
+	return createMessage(kefuID, visitorID, content, "kefu", replyType, visitorMessageID)
+}
+
+func createMessage(kefuID, visitorID, content, mesType, autoReplyType string, visitorMessageID uint, clientMessageID ...string) (uint, error) {
+	db := DB
+	if mesType == "kefu" {
+		db = DB.Begin()
+		if db.Error != nil {
+			return 0, db.Error
+		}
+		defer db.Rollback()
+		var visitor Visitor
+		if err := db.Set("gorm:query_option", "FOR UPDATE").Where("visitor_id=?", visitorID).First(&visitor).Error; err != nil {
+			return 0, err
+		}
+		if autoReplyType != "" && visitor.ToId != kefuID {
+			return 0, nil
+		}
+		if autoReplyType == "offline" {
+			var lastReply Message
+			err := db.Where("visitor_id=? AND kefu_id=? AND mes_type=? AND auto_reply_type<>?", visitorID, kefuID, "kefu", "keyword").Order("id DESC").First(&lastReply).Error
+			if err != nil && err != gorm.ErrRecordNotFound {
+				return 0, err
+			}
+			if err == nil && (lastReply.AutoReplyType == "offline" || lastReply.ID > visitorMessageID) {
+				return 0, nil
+			}
+		}
+	}
 	var key *string
 	if len(clientMessageID) > 0 && clientMessageID[0] != "" {
 		value := clientMessageID[0]
 		key = &value
 		var existing Message
-		err := DB.Where("client_message_id=?", value).First(&existing).Error
+		err := db.Where("client_message_id=?", value).First(&existing).Error
 		if err == nil {
 			if existing.KefuId != kefuID || existing.VisitorId != visitorID || existing.MesType != mesType {
 				return 0, fmt.Errorf("client message id belongs to another conversation")
@@ -47,16 +84,24 @@ func CreateMessage(kefuID string, visitorID string, content string, mesType stri
 			return 0, err
 		}
 	}
-	v := &Message{KefuId: kefuID, VisitorId: visitorID, Content: content, MesType: mesType, Status: "unread", ClientMessageID: key}
+	v := &Message{KefuId: kefuID, VisitorId: visitorID, Content: content, MesType: mesType, Status: "unread", ClientMessageID: key, AutoReplyType: autoReplyType}
 	v.UpdatedAt = time.Now()
-	if err := DB.Create(v).Error; err != nil {
+	if err := db.Create(v).Error; err != nil {
 		if key != nil {
 			var existing Message
-			if lookupErr := DB.Where("client_message_id=?", *key).First(&existing).Error; lookupErr == nil {
+			if lookupErr := db.Where("client_message_id=?", *key).First(&existing).Error; lookupErr == nil {
+				if existing.KefuId != kefuID || existing.VisitorId != visitorID || existing.MesType != mesType {
+					return 0, fmt.Errorf("client message id belongs to another conversation")
+				}
 				return existing.ID, nil
 			}
 		}
 		return 0, err
+	}
+	if mesType == "kefu" {
+		if err := db.Commit().Error; err != nil {
+			return 0, err
+		}
 	}
 	return v.ID, nil
 }
@@ -92,18 +137,26 @@ func FindUnreadMessageNumByVisitorId(visitorID, mesType string) (uint, error) {
 }
 
 type VisitorUnread struct {
-	VisitorId string
-	Unread    uint
+	VisitorId     string
+	Unread        uint
+	LastMessageID uint
 }
 
 func FindKefuUnreadMessages(kefuName string) ([]VisitorUnread, error) {
 	var counts []VisitorUnread
 	err := DB.Table("message").
-		Select("message.visitor_id, COUNT(*) AS unread").
+		Select("message.visitor_id, COUNT(*) AS unread, MAX(message.id) AS last_message_id").
 		Joins("JOIN visitor ON visitor.visitor_id = message.visitor_id").
 		Where("visitor.to_id=? AND visitor.deleted_at IS NULL AND message.deleted_at IS NULL AND message.mes_type=? AND message.status=?", kefuName, "visitor", "unread").
 		Group("message.visitor_id").Scan(&counts).Error
 	return counts, err
+}
+
+func ReadKefuMessages(kefuName string, lastMessageID uint) error {
+	visitors := DB.Table("visitor").Select("visitor_id").Where("to_id=? AND deleted_at IS NULL", kefuName).SubQuery()
+	return DB.Model(&Message{}).
+		Where("visitor_id IN (?) AND mes_type=? AND status=? AND id<=?", visitors, "visitor", "unread", lastMessageID).
+		Update("status", "read").Error
 }
 
 // 查询最后一条消息
