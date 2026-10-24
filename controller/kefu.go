@@ -266,6 +266,14 @@ func PostKefuInfo(c *gin.Context) {
 		})
 		return
 	}
+	if common.AppChatEnabled() {
+		var err error
+		avator, err = publishAgentAvatar(avator, name.(string))
+		if err != nil {
+			c.JSON(400, gin.H{"code": 400, "msg": "头像保存失败"})
+			return
+		}
+	}
 	models.UpdateUser(name.(string), password, avator, nickname)
 
 	c.JSON(200, gin.H{

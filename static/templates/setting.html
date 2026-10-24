@@ -100,6 +100,7 @@
                     <el-upload
                             class="avatar-uploader"
                             action="/uploadimg"
+                            :headers="{token: kefuUploadToken}"
                             :show-file-list="false"
                             name="imgfile"
                             :on-success="handleAvatarSuccess"

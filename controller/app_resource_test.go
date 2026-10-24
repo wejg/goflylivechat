@@ -52,10 +52,16 @@ func TestAppAvatarPublishesOnlyOwnNonConversationImage(t *testing.T) {
 	}
 	file.Close()
 	for _, tc := range []struct {
+		endpoint       string
 		visitor, agent string
 		want           int
 	}{
-		{"", f.to.Name, 400}, {f.visitor.VisitorId, f.from.Name, 400}, {"", f.from.Name, 200},
+		{"/modifyavator", "", f.to.Name, 400},
+		{"/modifyavator", f.visitor.VisitorId, f.from.Name, 400},
+		{"/modifyavator", "", f.from.Name, 200},
+		{"/kefuinfo", "", f.to.Name, 400},
+		{"/kefuinfo", f.visitor.VisitorId, f.from.Name, 400},
+		{"/kefuinfo", "", f.from.Name, 200},
 	} {
 		row, err := models.RecordPrivateUpload(filename, "avatar.png", tc.visitor, tc.agent)
 		if err != nil {
@@ -63,13 +69,15 @@ func TestAppAvatarPublishesOnlyOwnNonConversationImage(t *testing.T) {
 		}
 		t.Cleanup(func() { models.DB.Delete(&row) })
 		r := gin.New()
+		r.Static("/static/avatars", "static/avatars")
 		r.POST("/modifyavator", func(c *gin.Context) { c.Set("kefu_name", f.from.Name) }, controller.PostKefuAvator)
-		req := httptest.NewRequest("POST", "/modifyavator", strings.NewReader(url.Values{"avator": {"/attachments/" + row.ID}}.Encode()))
+		r.POST("/kefuinfo", func(c *gin.Context) { c.Set("kefu_name", f.from.Name) }, controller.PostKefuInfo)
+		req := httptest.NewRequest("POST", tc.endpoint, strings.NewReader(url.Values{"avator": {"/attachments/" + row.ID}}.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != tc.want {
-			t.Fatalf("avatar actor %q/%q got %d %s", tc.visitor, tc.agent, w.Code, w.Body.String())
+			t.Errorf("%s avatar actor %q/%q got %d %s", tc.endpoint, tc.visitor, tc.agent, w.Code, w.Body.String())
 		}
 		if tc.want == 200 {
 			published := models.FindUser(f.from.Name).Avator
@@ -79,6 +87,14 @@ func TestAppAvatarPublishesOnlyOwnNonConversationImage(t *testing.T) {
 			t.Cleanup(func() { os.Remove(strings.TrimPrefix(published, "/")) })
 			if _, err := os.Stat(strings.TrimPrefix(published, "/")); err != nil {
 				t.Fatal(err)
+			}
+			w = httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest("GET", published, nil))
+			if w.Code != 200 {
+				t.Fatalf("public avatar got HTTP %d", w.Code)
+			}
+			if _, err := png.Decode(w.Body); err != nil {
+				t.Fatalf("public avatar is not a readable image: %v", err)
 			}
 		}
 	}

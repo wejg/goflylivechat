@@ -49,3 +49,22 @@ test('configuration save failure is visible and never runs its success callback'
     assert.equal(c.messages[0].message, '保存失败');
     assert.equal(c.requests.length, 1);
 });
+
+test('profile save reloads the published avatar URL', () => {
+    const c = settings();
+    c.app.kefuInfo = { uid: 1, nickname: 'Agent', avator: '/attachments/avatar-id' };
+    c.app.setUser();
+    c.requests[0].success({ code: 200, result: '' });
+    assert.equal(c.requests[1]?.url, '/kefuinfo');
+    c.requests[1].success({ code: 200, result: { username: 'agent', avator: '/static/avatars/published.png' } });
+    assert.equal(c.app.kefuInfo.avator, '/static/avatars/published.png');
+});
+
+test('avatar upload failure displays the server error and keeps the current avatar', () => {
+    const c = settings();
+    c.app.kefuInfo.avator = '/static/images/4.jpg';
+    c.app.handleAvatarSuccess({ code: 400, msg: '上传失败!' });
+    assert.equal(c.messages[0]?.message, '上传失败!');
+    assert.equal(c.messages[0]?.type, 'error');
+    assert.equal(c.app.kefuInfo.avator, '/static/images/4.jpg');
+});
