@@ -153,9 +153,9 @@
                         <el-tab-pane label="访客信息" name="visitorInfo">
                             <el-menu class="visitorInfo" v-show="visitor.visitor_id">
                                 <el-tooltip content="点击加入黑名单" placement="left">
-                                    <el-menu-item v-on:click="addIpblack(visitor.source_ip)" title="点击加入黑名单" style="padding-left:2px;color: #666;">
+                                    <el-menu-item v-on:click="addIpblack(visitor.client_ip || visitor.source_ip)" title="点击加入黑名单" style="padding-left:2px;color: #666;">
                                         <i class="el-icon-user"></i>
-                                        <span slot="title">IP: <{visitor.source_ip}></span>
+                                        <span slot="title">IP: <{visitor.client_ip || visitor.source_ip}></span>
                                     </el-menu-item>
                                 </el-tooltip>
 
