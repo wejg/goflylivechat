@@ -105,11 +105,11 @@
                          @older="getHistoryMessage" @newer="getNewerMessages" @latest="showLatestMessages" @position="onListPosition">
                 <template slot-scope="row">
                         <el-row :gutter="2" v-bind:class="{'chatBoxMe': row.item.is_kefu==true}">
-                            <div class="chatTime"><{row.item.time}></div>
+                            <div class="chatTime"><{messageTime(row.item)}></div>
                             <div class="chatRow">
                                 <el-avatar v-if="row.item.is_kefu==false" class="chatRowAvator" :size="48" :src="row.item.avator"></el-avatar>
                                 <div class="chatMsgContent">
-                                    <div class="chatUser"><{row.item.name}></div>
+                                    <div class="chatUser"><{messageName(row.item)}></div>
                                     <div class="chatContent" v-html="row.item.content"></div>
                                 </div>
                                 <el-avatar v-if="row.item.is_kefu==true" class="chatRowAvator" :size="48" :src="row.item.avator"></el-avatar>
@@ -396,6 +396,13 @@
             },
         },
         methods: {
+            messageName(item){
+                if(item.is_kefu || this.visitor.visitor_id!==this.currentGuest || !this.visitor.id){return item.name;}
+                return this.visitor.name;
+            },
+            messageTime(item){
+                return item.time ? formatDate(item.time) : '';
+            },
             //跳转
             openUrl(url) {
                 window.location.href = url;

@@ -1,6 +1,9 @@
 package models
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -17,6 +20,18 @@ type Visitor struct {
 	ClientIp    string `json:"client_ip"`
 	LastMessage string `json:"last_message"`
 	Extra       string `json:"extra"`
+}
+
+func (v Visitor) DisplayName() string {
+	var extra struct {
+		AccountID string `json:"account_id"`
+		IsGuest   string `json:"is_guest"`
+	}
+	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(v.Extra, "="))
+	if err == nil && json.Unmarshal(raw, &extra) == nil && extra.IsGuest == "true" && extra.AccountID != "" {
+		return "visitor_" + extra.AccountID
+	}
+	return v.Name
 }
 
 func CreateVisitor(name, avator, sourceIp, toId, visitorId, refer, city, clientIp, extra string) (Visitor, error) {

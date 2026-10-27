@@ -267,6 +267,12 @@ func TestMessageResponsesAndPushesUseSavedMessageIDs(t *testing.T) {
 		if err := json.Unmarshal(transferEvent(t, item.conn, "message"), &pushed); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := time.Parse(time.RFC3339, pushed.Time); err != nil {
+			t.Errorf("%s push must include timezone: %q: %v", item.kind, pushed.Time, err)
+		}
+		if item.kind == "visitor" && pushed.Name != f.visitor.DisplayName() {
+			t.Errorf("visitor push name = %q, want %q", pushed.Name, f.visitor.DisplayName())
+		}
 		var saved models.Message
 		models.DB.Where("visitor_id=? AND mes_type=?", f.visitor.VisitorId, item.kind).Last(&saved)
 		if response.Code != 200 || saved.ID == 0 || response.Result.MessageID != saved.ID || pushed.MessageId != saved.ID {
@@ -279,6 +285,9 @@ func TestMessageResponsesAndPushesUseSavedMessageIDs(t *testing.T) {
 			}
 			if echo.MessageId != saved.ID {
 				t.Errorf("agent echo lost message ID: %+v", echo)
+			}
+			if _, err := time.Parse(time.RFC3339, echo.Time); err != nil {
+				t.Errorf("agent echo must include timezone: %q: %v", echo.Time, err)
 			}
 		}
 	}

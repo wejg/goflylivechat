@@ -8,6 +8,7 @@ import (
 	"goflylivechat/ws"
 	"net/http"
 	"sync"
+	"unicode/utf8"
 )
 
 func PostKefuAvator(c *gin.Context) {
@@ -42,6 +43,14 @@ func PostKefuPass(c *gin.Context) {
 	newPass := c.PostForm("new_pass")
 	confirmNewPass := c.PostForm("confirm_new_pass")
 	old_pass := c.PostForm("old_pass")
+	if old_pass == "" || newPass == "" || confirmNewPass == "" {
+		c.JSON(200, gin.H{"code": 400, "msg": "请填写原密码、新密码和确认新密码", "result": ""})
+		return
+	}
+	if utf8.RuneCountInString(newPass) < 8 || len(newPass) > 72 {
+		c.JSON(200, gin.H{"code": 400, "msg": "新密码至少 8 个字符，且不能超过 72 字节", "result": ""})
+		return
+	}
 	if newPass != confirmNewPass {
 		c.JSON(200, gin.H{
 			"code":   400,
@@ -65,7 +74,10 @@ func PostKefuPass(c *gin.Context) {
 		c.JSON(200, gin.H{"code": 500, "msg": "密码更新失败", "result": ""})
 		return
 	}
-	models.UpdateUserPass(kefuName.(string), hashed)
+	if err := models.UpdateUserPass(kefuName.(string), hashed); err != nil {
+		c.JSON(200, gin.H{"code": 500, "msg": "密码更新失败", "result": ""})
+		return
+	}
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",
@@ -252,12 +264,8 @@ func PostKefuInfo(c *gin.Context) {
 	avator := c.PostForm("avator")
 	nickname := c.PostForm("nickname")
 	if password != "" {
-		hashed, err := tools.HashPassword(password)
-		if err != nil {
-			c.JSON(200, gin.H{"code": 500, "msg": "密码更新失败"})
-			return
-		}
-		password = hashed
+		c.JSON(200, gin.H{"code": 400, "msg": "请通过修改密码功能修改密码"})
+		return
 	}
 	if name == "" {
 		c.JSON(200, gin.H{

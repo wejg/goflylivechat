@@ -178,6 +178,7 @@ func GetVisitor(c *gin.Context) {
 		c.JSON(403, gin.H{"code": 403, "msg": "无权访问该会话"})
 		return
 	}
+	vistor.Name = vistor.DisplayName()
 	c.JSON(200, gin.H{
 		"code":   200,
 		"msg":    "ok",
@@ -201,6 +202,9 @@ func GetVisitors(c *gin.Context) {
 	}
 	kefuId, _ := c.Get("kefu_name")
 	vistors := models.FindVisitorsByKefuId(uint(page), uint(pagesize), kefuId.(string))
+	for i := range vistors {
+		vistors[i].Name = vistors[i].DisplayName()
+	}
 	count := models.CountVisitorsByKefuId(kefuId.(string))
 	c.JSON(200, gin.H{
 		"code": 200,

@@ -84,7 +84,7 @@ func KefuMessage(visitorId, content string, kefuInfo models.User, messageID uint
 			Name:      kefuInfo.Nickname,
 			Avator:    kefuInfo.Avator,
 			Id:        visitorId,
-			Time:      time.Now().Format("2006-01-02 15:04:05"),
+			Time:      time.Now().UTC().Format(time.RFC3339),
 			ToId:      visitorId,
 			Content:   content,
 			IsKefu:    "yes",

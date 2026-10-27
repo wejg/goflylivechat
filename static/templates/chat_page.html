@@ -567,9 +567,7 @@
                 });
             },
             getNowDate : function() {
-                var d = new Date(new Date());
-                return d.getFullYear() + '-' + this.digit(d.getMonth() + 1) + '-' + this.digit(d.getDate())
-                    + ' ' + this.digit(d.getHours()) + ':' + this.digit(d.getMinutes()) + ':' + this.digit(d.getSeconds());
+                return new Date().toISOString();
             },
             digit : function (num) {
                 return num < 10 ? '0' + (num | 0) : num;

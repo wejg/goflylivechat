@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"time"
 )
@@ -37,12 +38,19 @@ func UpdateUser(name string, password string, avator string, nickname string) {
 	}
 	DB.Model(&User{}).Where("name = ?", name).Update(user)
 }
-func UpdateUserPass(name string, pass string) {
+func UpdateUserPass(name string, pass string) error {
 	user := &User{
 		Password: pass,
 	}
 	user.UpdatedAt = time.Now()
-	DB.Model(user).Where("name = ?", name).Update("Password", pass)
+	result := DB.Model(user).Where("name = ?", name).Update("Password", pass)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 func UpdateUserAvator(name string, avator string) {
 	user := &User{

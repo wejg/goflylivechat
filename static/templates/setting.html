@@ -83,15 +83,6 @@
                     <el-input v-model="kefuInfo.nickname" placeholder="请输入显示名称"></el-input>
                 </el-form-item>
 
-                <el-form-item label="新密码">
-                    <el-input
-                            v-model="kefuInfo.password"
-                            type="password"
-                            placeholder="请输入新密码"
-                            show-password>
-                    </el-input>
-                </el-form-item>
-
                 <el-form-item label="当前头像">
                     <el-avatar :size="120" :src="kefuInfo.avator"></el-avatar>
                 </el-form-item>
@@ -112,6 +103,25 @@
 
                 <el-form-item>
                     <el-button type="primary" @click="setUser()">保存修改</el-button>
+                </el-form-item>
+            </el-form>
+        </div>
+
+        <div class="profile-form" style="margin-top: 20px">
+            <h3 class="form-title">修改密码</h3>
+            <el-form :model="modifyPass" label-width="180px" label-position="left" @submit.native.prevent="setModifyPass">
+                <el-form-item label="原密码">
+                    <el-input v-model="modifyPass.old_pass" label="原密码" type="password" autocomplete="current-password" placeholder="请输入原密码" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="新密码">
+                    <el-input v-model="modifyPass.new_pass" label="新密码" type="password" autocomplete="new-password" placeholder="请输入至少 8 个字符的新密码" show-password></el-input>
+                    <div class="el-upload__tip">新密码至少 8 个字符，最长 72 字节（汉字通常占 3 字节）</div>
+                </el-form-item>
+                <el-form-item label="确认新密码">
+                    <el-input v-model="modifyPass.confirm_new_pass" label="确认新密码" type="password" autocomplete="new-password" placeholder="请再次输入新密码" show-password></el-input>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" native-type="submit" :loading="passwordSaving">修改密码</el-button>
                 </el-form-item>
             </el-form>
         </div>

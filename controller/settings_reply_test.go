@@ -60,6 +60,8 @@ func settingsRequest(t *testing.T, user, method, endpoint string, values url.Val
 	engine := gin.New()
 	engine.Use(gin.Recovery(), func(c *gin.Context) { c.Set("kefu_name", user) })
 	engine.POST("/config", controller.PostConfig)
+	engine.POST("/modifypass", controller.PostKefuPass)
+	engine.POST("/kefuinfo", controller.PostKefuInfo)
 	engine.POST("/reply", controller.PostReply)
 	engine.POST("/reply_content", controller.PostReplyContent)
 	engine.POST("/reply_content_save", controller.PostReplyContentSave)

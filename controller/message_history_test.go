@@ -4,9 +4,28 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	"goflylivechat/models"
 )
+
+func TestHistoryMessageTimeIncludesTimezone(t *testing.T) {
+	f := newTransferFixture(t)
+	created := time.Date(2026, 10, 26, 17, 42, 22, 0, time.UTC)
+	m := models.Message{Model: models.Model{CreatedAt: created}, VisitorId: f.visitor.VisitorId, KefuId: f.from.Name, MesType: "kefu", Content: "timezone regression", Status: "read"}
+	if err := models.DB.Create(&m).Error; err != nil {
+		t.Fatal(err)
+	}
+	response := f.request(t, "GET", "/2/messagesPages?"+url.Values{"visitor_id": {f.visitor.VisitorId}}.Encode(), f.from.Name, nil)
+	if response.Code != 200 || len(response.Result.List) != 1 {
+		t.Fatalf("history response: %+v", response)
+	}
+	value := response.Result.List[0].CreateTime
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil || !parsed.Equal(created) {
+		t.Fatalf("message time %q must preserve instant %s: %v", value, created, err)
+	}
+}
 
 func TestHistoryCursorDoesNotRepeatOrSkipOlderMessagesAfterNewMessagesArrive(t *testing.T) {
 	f := newTransferFixture(t)

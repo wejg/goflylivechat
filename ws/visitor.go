@@ -94,7 +94,7 @@ func NewVisitorServer(c *gin.Context) {
 	_ = conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
 	user := &User{
 		Conn:       conn,
-		Name:       visitorInfo.Name,
+		Name:       visitorInfo.DisplayName(),
 		Avator:     visitorInfo.Avator,
 		Id:         visitorInfo.VisitorId,
 		To_id:      visitorInfo.ToId,
@@ -170,7 +170,7 @@ func VisitorOnline(kefuId string, visitor models.Visitor) {
 	lastMessage := models.FindLastMessageByVisitorId(visitor.VisitorId)
 	userInfo := make(map[string]string)
 	userInfo["uid"] = visitor.VisitorId
-	userInfo["username"] = visitor.Name
+	userInfo["username"] = visitor.DisplayName()
 	userInfo["avator"] = visitor.Avator
 	userInfo["last_message"] = lastMessage.Content
 	if userInfo["last_message"] == "" {
@@ -220,7 +220,7 @@ func VisitorMessage(visitorId, content string, kefuInfo models.User, messageID u
 			Name:      kefuInfo.Nickname,
 			Avator:    kefuInfo.Avator,
 			Id:        kefuInfo.Name,
-			Time:      time.Now().Format("2006-01-02 15:04:05"),
+			Time:      time.Now().UTC().Format(time.RFC3339),
 			ToId:      visitorId,
 			Content:   content,
 			IsKefu:    "no",

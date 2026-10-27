@@ -13,6 +13,8 @@
             host:getBaseUrl(),
             deployCode:"",
             kefuInfo:{},
+            modifyPass:{old_pass:"", new_pass:"", confirm_new_pass:""},
+            passwordSaving:false,
             account: {
                 username: "",
                 password: "",
@@ -80,12 +82,13 @@
             initInfo(){
                 this.getConfigList();
             },
-            sendAjax(url,method,params,callback){
+            sendAjax(url,method,params,callback,complete){
                 let _this=this;
                 $.ajax({
                     type: method,
                     url: url,
                     data:params,
+                    complete:complete,
                     headers: {
                         "token": localStorage.getItem("token")
                     },
@@ -140,13 +143,41 @@
                     id:_this.kefuInfo.uid,
                     nickname:_this.kefuInfo.nickname,
                     avator:_this.kefuInfo.avator,
-                    password:_this.kefuInfo.password,
                 },function(result){
                     _this.getKefuInfo();
                     _this.$message({
                         message: "保存成功",
                         type: 'success'
                     });
+                });
+            },
+            setModifyPass(){
+                if(this.passwordSaving){
+                    return;
+                }
+                const fields=this.modifyPass;
+                let message="";
+                if(!fields.old_pass || !fields.new_pass || !fields.confirm_new_pass){
+                    message="请填写原密码、新密码和确认新密码";
+                }else if(Array.from(fields.new_pass).length<8){
+                    message="新密码至少 8 个字符";
+                }else if(fields.new_pass!==fields.confirm_new_pass){
+                    message="两次输入的新密码不一致";
+                }
+                if(message){
+                    this.$message({message:message, type:'error'});
+                    return;
+                }
+                this.passwordSaving=true;
+                this.sendAjax("/modifypass","POST",{
+                    old_pass:fields.old_pass,
+                    new_pass:fields.new_pass,
+                    confirm_new_pass:fields.confirm_new_pass,
+                },()=>{
+                    this.modifyPass={old_pass:"", new_pass:"", confirm_new_pass:""};
+                    this.$message({message:"密码修改成功", type:'success'});
+                },()=>{
+                    this.passwordSaving=false;
                 });
             },
             handleAvatarSuccess(res, file) {

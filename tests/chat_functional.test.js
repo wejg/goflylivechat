@@ -18,8 +18,9 @@ function chat(kind = 'visitor', options = {}) {
         getWsBaseUrl: () => 'ws://localhost',
         localStorage: { getItem: () => 'test-token' },
         replaceContent: value => value,
-        formatDate: value => value,
+        formatDate: vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../static/js/functions.js'), 'utf8') + '; formatDate', { document: {} }),
         getQuery: () => '',
+        b64ToUtf8: value => Buffer.from(value, 'base64').toString('utf8'),
         window: { location: { origin: 'http://localhost' }, parent: { postMessage() {} }, matchMedia: () => ({matches:!options.touch}) },
         document: { hidden: false },
         KEFU_ID: options.kefu || 'qa-agent',
@@ -46,16 +47,16 @@ function chat(kind = 'visitor', options = {}) {
         app, requests, errors,
         connect() { initConn.call(app); },
         history() { return requests.findLast(request => request.url === '/2/messagesPages'); },
-        receive(id, content = `message ${id}`) {
+        receive(id, content = `message ${id}`, time = '2026-10-21T12:00:00Z') {
             app.OnMessage({ data: JSON.stringify({ type: 'message', data: {
                 message_id: id, id: kind === 'agent' ? 'a' : 'qa-agent',
-                name: 'Agent', avator: '', content, is_kefu: 'yes', time: '2026-10-21 12:00:00',
+                name: 'Agent', avator: '', content, is_kefu: 'yes', time,
             } }) });
         },
     };
 }
 function message(id, visitor = 'a') {
-    return { id, visitor_id: visitor, content: `message ${id}`, mes_type: 'kefu', create_time: '2026-10-21 12:00:00', visitor_name: visitor, visitor_avator: '', kefu_name: 'Agent', kefu_avator: '' };
+    return { id, visitor_id: visitor, content: `message ${id}`, mes_type: 'kefu', create_time: '2026-10-21T12:00:00Z', visitor_name: visitor, visitor_avator: '', kefu_name: 'Agent', kefu_avator: '' };
 }
 function finish(request, response) {
     request.success(response);
@@ -67,6 +68,91 @@ function fail(request) {
     if (request.complete) request.complete();
 }
 function ids(app) { return Array.from(app.msgList, item => item.id); }
+
+test('agent distinguishes identical visitor names using their App account IDs in history and realtime', () => {
+    const c = chat('agent');
+    for (const [visitorId, accountId, recordId] of [['a', '42', 1012], ['b', '43', 1013]]) {
+        c.app.talkTo(visitorId, 'App visitor');
+        c.app.OnMessage({ data: JSON.stringify({ type: 'message', data: {
+            id: visitorId, message_id: 3274, name: 'App visitor', is_kefu: 'no', content: 'hello',
+        } }) });
+        const realtime = c.app.msgList[0];
+        assert.equal(c.app.messageName(realtime), 'App visitor', 'must not show the previous visitor account while details load');
+        finish(c.requests.findLast(request => request.url === '/visitor'), { code: 200, result: {
+            visitor_id: visitorId, id: recordId, name: `visitor_${accountId}`, status: 1,
+            extra: Buffer.from(JSON.stringify({ account_id: accountId, is_guest: 'true' })).toString('base64'),
+        } });
+        const expected = `visitor_${accountId}`;
+        assert.equal(c.app.messageName(realtime), expected);
+        finish(c.history(), { code: 200, result: { list: [{ ...message(3273, visitorId), mes_type: 'visitor', visitor_name: 'App visitor' }] } });
+        assert.equal(c.app.messageName(c.app.msgList[0]), expected);
+        assert.equal(c.app.messageName({ name: '客服', is_kefu: true }), '客服');
+    }
+});
+
+test('agent keeps registered account names in history and realtime', () => {
+    const c = chat('agent');
+    c.app.getVistorInfo('a');
+    finish(c.requests[0], { code: 200, result: {
+        visitor_id: 'a', id: 1012, name: 'user_2088', status: 1,
+        extra: Buffer.from(JSON.stringify({ account_id: '2088', is_guest: 'false' })).toString('base64'),
+    } });
+    c.app.OnMessage({ data: JSON.stringify({ type: 'message', data: {
+        id: 'a', message_id: 3274, name: 'user_2088', is_kefu: 'no', content: 'hello',
+    } }) });
+    assert.equal(c.app.messageName(c.app.msgList[0]), 'user_2088');
+    c.app.getHistoryMessage();
+    finish(c.history(), { code: 200, result: { list: [{ ...message(3273), mes_type: 'visitor', visitor_name: 'user_2088' }] } });
+    assert.equal(c.app.messageName(c.app.msgList[0]), 'user_2088');
+});
+
+test('history and realtime messages use the browser timezone, including the next day in China', () => {
+    const originalTZ = process.env.TZ;
+    try {
+        for (const [timezone, expected] of [
+            ['Asia/Shanghai', '2026-10-27 01:42:22'],
+            ['UTC', '2026-10-26 17:42:22'],
+            ['America/New_York', '2026-10-26 13:42:22'],
+        ]) {
+            process.env.TZ = timezone;
+            for (const kind of ['agent', 'visitor']) {
+                const c = chat(kind), time = '2026-10-26T17:42:22Z';
+                c.receive(3271, 'timezone regression', time);
+                const display = item => kind === 'agent' ? c.app.messageTime(item) : c.app.messageDate(item);
+                const realtime = display(c.app.msgList[0]);
+                if (kind === 'agent') assert.equal(realtime, expected);
+                else {
+                    assert.equal(realtime.getDate(), Number(expected.slice(8, 10)));
+                    assert.equal(realtime.getHours(), Number(expected.slice(11, 13)));
+                    assert.equal(realtime.getMinutes(), 42);
+                }
+                c.app.msgList = [];
+                c.app.getHistoryMessage();
+                finish(c.history(), { code: 200, result: { list: [{ ...message(3271), create_time: time }] } });
+                assert.equal(String(display(c.app.msgList[0])), String(realtime));
+                if (kind === 'visitor') {
+                    assert.equal(c.app.messageDate({ time: '2026-10-27T01:42:22+08:00' }).getTime(), realtime.getTime());
+                }
+            }
+        }
+    } finally {
+        if (originalTZ === undefined) delete process.env.TZ;
+        else process.env.TZ = originalTZ;
+    }
+});
+
+test('visitor pending messages have an explicit timezone and keep their label after history reload', () => {
+    const c = chat();
+    c.app.messageContent = 'time regression';
+    c.app.chatToUser();
+    const pending = c.app.msgList[0], label = c.app.messageTime(pending);
+    assert.match(pending.time, /T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    finish(c.requests[0], { code: 200, result: { message_id: 3274 } });
+    c.app.msgList = [];
+    c.app.getHistoryMessage();
+    finish(c.history(), { code: 200, result: { list: [{ ...message(3274), create_time: pending.time }] } });
+    assert.equal(c.app.messageTime(c.app.msgList[0]), label);
+});
 
 test('visitor presence follows online events, heartbeat offline and reconnect', () => {
     const {app}=chat();

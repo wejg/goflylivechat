@@ -115,10 +115,10 @@ func SendMessageV2(c *gin.Context) {
 				MessageId: messageID,
 				Avator:    vistorInfo.Avator,
 				Id:        vistorInfo.VisitorId,
-				Name:      vistorInfo.Name,
+				Name:      vistorInfo.DisplayName(),
 				ToId:      kefuInfo.Name,
 				Content:   content,
-				Time:      time.Now().Format("2006-01-02 15:04:05"),
+				Time:      time.Now().UTC().Format(time.RFC3339),
 				IsKefu:    "no",
 			},
 		}
