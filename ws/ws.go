@@ -196,7 +196,10 @@ func WsServerBackend() {
 					visitor.Touch()
 				}
 			}
-			_ = WriteJSON(msg.user, TypeMessage{Type: "pong", Data: map[string]bool{"online": IsKefuOnline(msg.user.RouteTo())}})
+			_ = WriteJSON(msg.user, TypeMessage{Type: "pong", Data: map[string]bool{
+				"online":       IsKefuOnline(msg.user.RouteTo()),
+				"service_open": common.IsServiceTime(time.Now()),
+			}})
 		case "inputing":
 			var data struct {
 				From string `json:"from"`
@@ -230,10 +233,11 @@ func WsServerBackend() {
 			}
 			_ = WriteJSON(visitor, TypeMessage{
 				Type: "kfOnline",
-				Data: map[string]string{
-					"id":     data.Id,
-					"name":   data.Name,
-					"avator": data.Avator,
+				Data: map[string]interface{}{
+					"id":           data.Id,
+					"name":         data.Name,
+					"avator":       data.Avator,
+					"service_open": common.IsServiceTime(time.Now()),
 				},
 			})
 		}

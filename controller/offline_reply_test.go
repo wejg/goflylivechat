@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jinzhu/gorm"
+	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/ws"
 )
@@ -24,10 +26,35 @@ func offlineReplyFixture(t *testing.T) transferFixture {
 func offlineReplyCount(t *testing.T, visitorID string) int {
 	t.Helper()
 	var count int
-	if err := models.DB.Model(&models.Message{}).Where("visitor_id=? AND content=? AND mes_type=?", visitorID, "offline answer", "kefu").Count(&count).Error; err != nil {
+	if err := models.DB.Model(&models.Message{}).Where("visitor_id=? AND auto_reply_type=? AND mes_type=?", visitorID, "offline", "kefu").Count(&count).Error; err != nil {
 		t.Fatal(err)
 	}
 	return count
+}
+
+func TestAfterHoursReplyForConnectedAgentWithoutOfflineConfig(t *testing.T) {
+	f := newTransferFixture(t)
+	if common.IsServiceTime(time.Now()) {
+		t.Skip("requires running outside service hours")
+	}
+	transferSocket(t, f.from.Name, "", false)
+	for i := 0; i < 2; i++ {
+		messageID, err := models.CreateMessage(f.from.Name, f.visitor.VisitorId, "after-hours question", "visitor")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ws.VisitorAutoReply(f.visitor, f.from, "after-hours question", messageID)
+	}
+	if count := offlineReplyCount(t, f.visitor.VisitorId); count != 1 {
+		t.Fatalf("after-hours messages produced %d reminders", count)
+	}
+	var reply models.Message
+	if err := models.DB.Where("visitor_id=? AND auto_reply_type=?", f.visitor.VisitorId, "offline").First(&reply).Error; err != nil {
+		t.Fatal(err)
+	}
+	if reply.Content != common.ServiceHoursMessage {
+		t.Fatalf("unexpected after-hours reminder: %q", reply.Content)
+	}
 }
 
 func TestOfflineReplyOnceUntilHumanReply(t *testing.T) {

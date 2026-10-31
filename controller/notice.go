@@ -2,8 +2,10 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
+	"goflylivechat/common"
 	"goflylivechat/models"
 	"goflylivechat/ws"
+	"time"
 )
 
 func GetNotice(c *gin.Context) {
@@ -23,12 +25,13 @@ func GetNotice(c *gin.Context) {
 		"code": 200,
 		"msg":  "ok",
 		"result": gin.H{
-			"welcome":   welcomeMessage.ConfValue,
-			"offline":   offlineMessage.ConfValue,
-			"avatar":    user.Avator,
-			"nickname":  user.Nickname,
-			"online":    ws.IsKefuOnline(user.Name),
-			"allNotice": allNotice.ConfValue,
+			"welcome":      welcomeMessage.ConfValue,
+			"offline":      offlineMessage.ConfValue,
+			"avatar":       user.Avator,
+			"nickname":     user.Nickname,
+			"online":       ws.IsKefuOnline(user.Name),
+			"service_open": common.IsServiceTime(time.Now()),
+			"allNotice":    allNotice.ConfValue,
 		},
 	})
 }

@@ -115,6 +115,7 @@
             visitor:{},
             face:[],
             showKfonline:false,
+            serviceOpen:true,
             presenceVersion:0,
             socketClosed:false,
             focusSendConn:false,
@@ -144,11 +145,14 @@
             },
         },
         methods: {
-            setAgentPresence(online,name){
+            setAgentPresence(online,name,serviceOpen){
                 this.presenceVersion++;
+                const hoursChanged=typeof serviceOpen==='boolean' && this.serviceOpen!==serviceOpen;
+                if(typeof serviceOpen==='boolean') this.serviceOpen=serviceOpen;
+                online=online && this.serviceOpen;
                 const changed=this.showKfonline!==online;
                 this.showKfonline=online;
-                if(changed || name || this.chatTitle==='正在连接...' || this.chatTitle==='已连接，正在获取客服状态…'){this.chatTitle=online ? (name || this.kefuInfo.nickname || '客服')+'在线，为你服务' : '客服暂时离线，可以留言咨询';}
+                if(changed || hoursChanged || name || this.chatTitle==='正在连接...' || this.chatTitle==='已连接，正在获取客服状态…'){this.chatTitle=!this.serviceOpen ? '客服已下班（北京时间 10:00–18:00），可以留言咨询' : online ? (name || this.kefuInfo.nickname || '客服')+'在线，为你服务' : '客服暂时离线，可以留言咨询';}
             },
             messageDate(item){
                 return new Date(String(item.time || '').replace(' ','T'));
@@ -222,17 +226,13 @@
                 this.focusSendConn=false;
                 const redata = JSON.parse(e.data);
                 if(redata.type==='pong' && redata.data && typeof redata.data.online==='boolean'){
-                    this.setAgentPresence(redata.data.online);
+                    this.setAgentPresence(redata.data.online,undefined,redata.data.service_open);
                 }
                 if (redata.type == "kfOnline") {
                     let msg = redata.data
-                    if(this.showKfonline && this.visitor.to_id==msg.id){
-                        return;
-                    }
                     this.visitor.to_id=msg.id;
-                    this.setAgentPresence(true,msg.name);
+                    this.setAgentPresence(true,msg.name,msg.service_open);
                     this.scrollBottom();
-                    this.showKfonline=true;
                 }
                 if (redata.type == "transfer") {
                     var kefuId = redata.data
@@ -590,7 +590,7 @@
                     if(code!=200 || agent!==KEFU_ID) return;
                     _this.kefuInfo=res.result;
                     if(version===_this.presenceVersion && !_this.sessionFailed && !_this.socketClosed){
-                        _this.setAgentPresence(_this.kefuInfo.online===true,_this.kefuInfo.nickname || '客服');
+                        _this.setAgentPresence(_this.kefuInfo.online===true,_this.kefuInfo.nickname || '客服',_this.kefuInfo.service_open);
                     }
                     if(!_this.kefuInfo.welcome || _this.hasNewer || !_this.listAtBottom) return;
                     var msg={

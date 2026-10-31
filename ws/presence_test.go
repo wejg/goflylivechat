@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"goflylivechat/common"
 )
 
 func TestVisitorHeartbeatReportsAssignedAgentPresence(t *testing.T) {
@@ -43,7 +44,8 @@ func TestVisitorHeartbeatReportsAssignedAgentPresence(t *testing.T) {
 		var reply struct {
 			Type string `json:"type"`
 			Data struct {
-				Online bool `json:"online"`
+				Online      bool  `json:"online"`
+				ServiceOpen *bool `json:"service_open"`
 			} `json:"data"`
 		}
 		if err := client.ReadJSON(&reply); err != nil {
@@ -51,6 +53,9 @@ func TestVisitorHeartbeatReportsAssignedAgentPresence(t *testing.T) {
 		}
 		if reply.Type != "pong" || reply.Data.Online != online {
 			t.Fatalf("online=%v: got %+v", online, reply)
+		}
+		if reply.Data.ServiceOpen == nil || *reply.Data.ServiceOpen != common.IsServiceTime(time.Now()) {
+			t.Fatalf("incorrect service hours: %+v", reply.Data)
 		}
 	}
 }

@@ -175,6 +175,33 @@ test('late notice metadata cannot override a newer online event', () => {
     assert.equal(c.app.showKfonline,true);
 });
 
+test('outside service hours shows a leave-message prompt even when the agent connects', () => {
+    const c=chat();
+    c.app.getNotice();
+    finish(c.requests[0],{code:200,result:{nickname:'小飞',online:true,service_open:false}});
+    assert.equal(c.app.showKfonline,false);
+    assert.match(c.app.chatTitle,/下班.*10:00.*18:00.*留言/);
+    c.app.OnMessage({data:JSON.stringify({type:'kfOnline',data:{id:'qa-agent',name:'小飞',service_open:false}})});
+    assert.equal(c.app.showKfonline,false);
+    c.app.messageContent='下班留言';
+    c.app.chatToUser();
+    assert.ok(c.requests.some(request => request.url==='/2/message'));
+});
+
+test('heartbeats switch service hours without reopening the page', () => {
+    const {app}=chat();
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:true,service_open:true}})});
+    assert.equal(app.showKfonline,true);
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:true,service_open:false}})});
+    assert.equal(app.showKfonline,false);
+    assert.match(app.chatTitle,/下班/);
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:true,service_open:true}})});
+    assert.equal(app.showKfonline,true);
+    assert.match(app.chatTitle,/在线/);
+    app.OnMessage({data:JSON.stringify({type:'pong',data:{online:false,service_open:true}})});
+    assert.match(app.chatTitle,/离线/);
+});
+
 test('initial metadata reports offline without pretending that an open socket means agent online', () => {
     const c=chat();c.app.getNotice();
     finish(c.requests[0],{code:200,result:{nickname:'小飞',online:false}});

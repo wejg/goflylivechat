@@ -239,23 +239,26 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 		KefuMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
 		return
 	}
-	kefu, online := KefuList.Get(kefuInfo.Name)
-	if online && kefu != nil {
+	serviceOpen := common.IsServiceTime(time.Now())
+	if serviceOpen && IsKefuOnline(kefuInfo.Name) {
 		return
 	}
-	config := models.FindConfigByUserId(kefuInfo.Name, "OfflineMessage")
-	if config.ConfValue == "" {
+	replyContent := common.ServiceHoursMessage
+	if serviceOpen {
+		replyContent = models.FindConfigByUserId(kefuInfo.Name, "OfflineMessage").ConfValue
+	}
+	if replyContent == "" {
 		return
 	}
 	time.Sleep(1 * time.Second)
-	if kefu, online = KefuList.Get(kefuInfo.Name); online && kefu != nil {
+	if common.IsServiceTime(time.Now()) != serviceOpen || (serviceOpen && IsKefuOnline(kefuInfo.Name)) {
 		return
 	}
-	messageID, err := models.CreateAutoReply(kefuInfo.Name, vistorInfo.VisitorId, config.ConfValue, "offline", visitorMessageID)
+	messageID, err := models.CreateAutoReply(kefuInfo.Name, vistorInfo.VisitorId, replyContent, "offline", visitorMessageID)
 	if err != nil || messageID == 0 {
 		return
 	}
-	VisitorMessage(vistorInfo.VisitorId, config.ConfValue, kefuInfo, messageID)
+	VisitorMessage(vistorInfo.VisitorId, replyContent, kefuInfo, messageID)
 }
 func CleanVisitorExpire() {
 	go func() {
