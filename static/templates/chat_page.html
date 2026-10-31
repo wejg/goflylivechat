@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="/static/css/common.css?v=sdsderfrgfgdfdf" />
     <link rel="stylesheet" href="/static/css/icono.min.css" />
     <link rel="stylesheet" href="/static/css/icon/iconfont.css?v=fgjlgfda"/>
-    <link rel="stylesheet" href="/static/css/visitor-chat.css?v=4">
+    <link rel="stylesheet" href="/static/css/visitor-chat.css?v=5">
 </head>
 <body class="visitorBody support-chat">
 <div id="app" class="chatCenter" v-cloak @click="showFaceIcon=false;showIconBtns=false">
@@ -57,12 +57,12 @@
                         <div v-else-if="row.item.is_kefu" class="support-message-line">
                             <el-avatar class="support-avatar" :size="30" :src="row.item.avator"></el-avatar>
                             <div class="chatMsgContent">
-                                <div class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
+                                <div class="chatContent chatContent2 replyContentBtn" :class="{'is-image':row.item.imageOnly}" v-html="row.item.content"></div>
                             </div>
                         </div>
                         <div class="kefuMe support-message-line" v-else>
                             <div v-if="row.item.preview" class="chatContent chatContent2 replyContentBtn is-image"><img :src="row.item.preview" :width="row.item.imageWidth" :height="row.item.imageHeight" role="button" tabindex="0" aria-label="查看图片"></div>
-                            <div v-else class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
+                            <div v-else class="chatContent chatContent2 replyContentBtn" :class="{'is-image':row.item.imageOnly}" v-html="row.item.content"></div>
                         </div>
                         <div v-if="!row.item.is_kefu && (row.item.sending || row.item.failed)" class="support-send-state" :class="{'is-failed':row.item.failed}" role="status">
                             <span><{row.item.sending ? '发送中…' : (row.item.error || '发送失败')}></span>
@@ -310,6 +310,7 @@
                     content.avator = msg.avator;
                     content.name = msg.name;
                     content.content =replaceContent(msg.content);
+                    content.imageOnly=this.isImageContent(msg.content);
                     content.is_kefu = true;
                     content.time = msg.time;
                     content.id = msg.message_id;
@@ -368,12 +369,13 @@
                 const failed=this.msgList.find(item=>item.failed && !item.attachment && item.rawContent===raw && item.visitor_id===this.visitor.visitor_id);
                 this.sendMessage(failed || this.outgoingMessage(raw,false));
             },
+            isImageContent(raw){return /^img\[[^\]]+\]$/.test(String(raw || '').trim());},
             outgoingMessage(raw,attachment){
                 return {client_message_id:Date.now()+'-'+Math.random().toString(36).slice(2),
                     visitor_id:this.visitor.visitor_id,rawContent:raw,attachment:!!attachment,
                     avator:this.visitor.avator,name:this.visitor.name,content:replaceContent(raw),
                     is_kefu:false,time:this.getNowDate(),sending:false,failed:false,error:'',id:0,
-                    preview:'',imageWidth:150,imageHeight:150};
+                    preview:'',imageWidth:150,imageHeight:150,imageOnly:this.isImageContent(raw)};
             },
             retryMessage(item){
                 if(!item.failed || item.visitor_id!==this.visitor.visitor_id) return;
@@ -546,6 +548,7 @@
                             item.avator=item["visitor_avator"];
                         }
                         item.time = item["create_time"];
+                        item.imageOnly=_this.isImageContent(item.content);
                         item.content=replaceContent(item["content"]);
                         _this.msgList.unshift(item);
                     }

@@ -655,6 +655,18 @@ test('an outgoing image keeps its local preview and dimensions through sending a
     assert.deepEqual(c.revoked,['blob:test-preview']);
 });
 
+test('image-only styling is identical for outgoing, incoming and reloaded messages', () => {
+    const c=chat();const raw='img[/uploads/photo.png]';
+    assert.equal(c.app.outgoingMessage(raw,true).imageOnly,true);
+    c.app.OnMessage({data:JSON.stringify({type:'message',data:{message_id:60,id:'qa-agent',content:raw}})});
+    assert.equal(c.app.msgList[0].imageOnly,true);
+    c.app.getHistoryMessage();finish(c.history(),{code:200,result:{list:[{...message(61),mes_type:'visitor',content:raw}]}});
+    assert.equal(c.app.msgList[0].imageOnly,true);
+    assert.equal(c.app.outgoingMessage('说明：'+raw,false).imageOnly,false);
+    assert.equal(c.app.outgoingMessage('attachment[{"path":"/uploads/report.pdf"}]',true).imageOnly,false);
+    assert.equal(c.app.outgoingMessage('face[微笑]',false).imageOnly,false);
+});
+
 test('upload failure keeps its preview and exposes a retryable error', () => {
     const c=chat();c.app.selectAttachment({name:'problem.png',type:'image/png',size:123},true);
     c.app.confirmAttachment();fail(c.requests[0]);

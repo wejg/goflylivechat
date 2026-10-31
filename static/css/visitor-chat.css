@@ -144,7 +144,7 @@
 .support-chat .is-automatic .chatContent { min-height:0; padding:0; border-radius:0; background:transparent; color:inherit; font-size:13px; }
 .support-chat .chatContent img { max-width:100%; height:auto; vertical-align:middle; border-radius:9px; }
 .support-chat .chatContent img[alt] { width:26px; height:26px; border-radius:0; }
-.support-chat .chatBoxMe .chatContent.is-image { padding:0; min-width:0; min-height:0; background:transparent; line-height:0; overflow:hidden; }
+.support-chat .chatContent.is-image { padding:0; min-width:0; min-height:0; background:transparent; line-height:0; overflow:hidden; }
 .support-chat .chatContent.is-image img { display:block; }
 .support-chat .chatContent a { text-decoration:underline; color:inherit; }
 .support-chat .productCard { width:210px; max-width:100%; min-height:48px; padding:2px 0; align-items:center; }
