@@ -1,8 +1,8 @@
 (function(root){
     const LIMIT=200;
     function retain(items,direction){
-        const pending=items.filter(item=>item.sending);
-        const messages=items.filter(item=>!item.sending);
+        const pending=items.filter(item=>item.sending || item.failed).slice(-LIMIT);
+        const messages=items.filter(item=>!item.sending && !item.failed);
         const size=Math.max(0,LIMIT-pending.length);
         const overflow=messages.length>size;
         return {
@@ -68,6 +68,7 @@
                 return this._keys.get(item);
             },
             heights(){return this.items.map(item=>this._sizes.get(this.key(item))||80);},
+            olderHeight(){return this.older ? this.$el.querySelector('.chat-window-action')?.offsetHeight || 32 : 0;},
             rows(){return Array.from(this.$el.querySelectorAll('[data-chat-row]'));},
             visibleID(){
                 const box=this.$el.getBoundingClientRect(); let id=0;
@@ -82,7 +83,7 @@
                 const rows=this.rows();
                 const row=rows.find(row=>{const rect=row.getBoundingClientRect();return rect.top>=box.top && rect.top<box.bottom;}) || rows.find(row=>{const rect=row.getBoundingClientRect();return rect.bottom>box.top && rect.top<box.bottom;});
                 if(row){this._anchor={key:row.dataset.chatRow,offset:row.getBoundingClientRect().top-box.top};return;}
-                const heights=this.heights(),header=this.older?32:0;
+                const heights=this.heights(),header=this.olderHeight();
                 const range=visibleRange(heights,Math.max(0,this.$el.scrollTop-header),this.$el.clientHeight,0);
                 const item=this.items[range.start];
                 this._anchor=item?{key:this.key(item),offset:this.$el.clientTop+header+range.top-this.$el.scrollTop}:null;
@@ -110,7 +111,7 @@
                 }
             },
             updateRange(){
-                const next=visibleRange(this.heights(),Math.max(0,this.$el.scrollTop-(this.older?32:0)),this.$el.clientHeight||600);
+                const next=visibleRange(this.heights(),Math.max(0,this.$el.scrollTop-this.olderHeight()),this.$el.clientHeight||600);
                 if(Object.keys(next).some(key=>next[key]!==this.range[key])){this.range=next;return true;}
                 return false;
             },
@@ -135,7 +136,7 @@
                     target=this.$el.scrollHeight-this.$el.clientHeight;
                 }else if(this._anchor){
                     const index=this.items.findIndex(item=>this.key(item)===this._anchor.key);
-                    if(index>=0){target=this.$el.clientTop+(this.older?32:0)+heights.slice(0,index).reduce((a,b)=>a+b,0)-this._anchor.offset;}
+                    if(index>=0){target=this.$el.clientTop+this.olderHeight()+heights.slice(0,index).reduce((a,b)=>a+b,0)-this._anchor.offset;}
                 }
                 target=Math.max(0,Math.min(target,this.$el.scrollHeight-this.$el.clientHeight));
                 // Reassigning the same offset can cancel WebView momentum scrolling.
@@ -151,13 +152,13 @@
         render(h){
             const button=(text,event)=>h('button',{attrs:{type:'button',disabled:this.loading},class:['chat-window-action',event==='latest'?'chat-window-latest':''],on:{click:()=>this.request(event)}},[text]);
             const nodes=[];
-            if(this.older){nodes.push(button('加载更早消息','older'));}
+            if(this.older){nodes.push(button(this.loading?'正在加载…':'查看更早消息','older'));}
             nodes.push(h('div',{style:{height:this.range.top+'px'},attrs:{'aria-hidden':'true'}}));
             for(const item of this.items.slice(this.range.start,this.range.end)){
                 nodes.push(h('div',{key:this.key(item),class:'chat-window-row',attrs:{'data-chat-row':this.key(item),'data-message-id':item.id||''}},this.$scopedSlots.default({item})));
             }
             nodes.push(h('div',{style:{height:this.range.bottom+'px'},attrs:{'aria-hidden':'true'}}));
-            if(this.newer){nodes.push(button('加载较新消息','newer'),button('回到最新消息','latest'));}
+            if(this.newer){nodes.push(button('加载较新消息','newer'),button('有新消息，回到底部','latest'));}
             return h('div',{class:'chat-window',attrs:{tabindex:0,'aria-label':'聊天记录','data-message-count':this.items.length}},nodes);
         },
     };

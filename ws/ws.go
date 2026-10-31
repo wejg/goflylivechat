@@ -62,19 +62,20 @@ type TypeMessage struct {
 	Data interface{} `json:"data"`
 }
 type ClientMessage struct {
-	MessageId uint   `json:"message_id,omitempty"`
-	Name      string `json:"name"`
-	Avator    string `json:"avator"`
-	Id        string `json:"id"`
-	VisitorId string `json:"visitor_id"`
-	Group     string `json:"group"`
-	Time      string `json:"time"`
-	ToId      string `json:"to_id"`
-	Content   string `json:"content"`
-	City      string `json:"city"`
-	ClientIp  string `json:"client_ip"`
-	Refer     string `json:"refer"`
-	IsKefu    string `json:"is_kefu"`
+	MessageId     uint   `json:"message_id,omitempty"`
+	Name          string `json:"name"`
+	Avator        string `json:"avator"`
+	Id            string `json:"id"`
+	VisitorId     string `json:"visitor_id"`
+	Group         string `json:"group"`
+	Time          string `json:"time"`
+	ToId          string `json:"to_id"`
+	Content       string `json:"content"`
+	City          string `json:"city"`
+	ClientIp      string `json:"client_ip"`
+	Refer         string `json:"refer"`
+	IsKefu        string `json:"is_kefu"`
+	AutoReplyType string `json:"auto_reply_type,omitempty"`
 }
 
 var ClientList = registry.New[*User]()

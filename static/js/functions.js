@@ -122,7 +122,7 @@ function renderMessageToken(token, baseUrl) {
     if (token.indexOf('img[') === 0) {
         var src = token.replace(/^img\[/, '').replace(/\]$/, '');
         var safeSrc = safeUrl(src);
-        return safeSrc ? '<img onclick="bigPic(this.src,true)" src="' + safeSrc + '" style="max-width: 150px"/>' : escapeHtml(token);
+        return safeSrc ? '<img role="button" tabindex="0" aria-label="查看图片" onclick="bigPic(this.src,true)" src="' + safeSrc + '" style="max-width: 150px"/>' : escapeHtml(token);
     }
     if (token.indexOf('attachment[') === 0) {
         try {

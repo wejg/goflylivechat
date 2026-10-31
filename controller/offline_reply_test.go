@@ -1,8 +1,10 @@
 package controller_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +14,81 @@ import (
 	"goflylivechat/models"
 	"goflylivechat/ws"
 )
+
+func TestAutoReplyMetadataJSON(t *testing.T) {
+	for _, value := range []interface{}{&models.MessageKefu{}, &ws.ClientMessage{}} {
+		if err := json.Unmarshal([]byte(`{"auto_reply_type":"offline"}`), value); err != nil {
+			t.Fatal(err)
+		}
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]interface{}
+		if err := json.Unmarshal(data, &fields); err != nil {
+			t.Fatal(err)
+		}
+		if fields["auto_reply_type"] != "offline" {
+			t.Fatalf("%T lost automatic reply metadata: %s", value, data)
+		}
+	}
+	for _, value := range []interface{}{models.MessageKefu{}, ws.ClientMessage{}} {
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]interface{}
+		if err := json.Unmarshal(data, &fields); err != nil {
+			t.Fatal(err)
+		}
+		if _, exists := fields["auto_reply_type"]; exists {
+			t.Fatalf("%T labels manual messages as automatic: %s", value, data)
+		}
+	}
+}
+
+func TestAutoReplyMetadataInLiveMessagesAndHistory(t *testing.T) {
+	for _, kind := range []string{"offline", "keyword"} {
+		t.Run(kind, func(t *testing.T) {
+			f := offlineReplyFixture(t)
+			guest := transferSocket(t, f.visitor.VisitorId, f.from.Name, true)
+			if kind == "keyword" {
+				reply := models.ReplyItem{UserId: f.from.Name, GroupId: "1", ItemName: "question", Content: "keyword answer"}
+				if err := models.DB.Create(&reply).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			messageID, err := models.CreateMessage(f.from.Name, f.visitor.VisitorId, "question", "visitor")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ws.VisitorAutoReply(f.visitor, f.from, "question", messageID)
+			var live ws.ClientMessage
+			if err := json.Unmarshal(transferEvent(t, guest, "message"), &live); err != nil {
+				t.Fatal(err)
+			}
+			if live.AutoReplyType != kind {
+				t.Fatalf("live reply type=%q want %q", live.AutoReplyType, kind)
+			}
+			history := f.request(t, "GET", "/2/messagesPages?"+url.Values{"visitor_id": {f.visitor.VisitorId}}.Encode(), f.from.Name, nil)
+			if history.Code != 200 || len(history.Result.List) != 2 || history.Result.List[0].AutoReplyType != kind || history.Result.List[1].AutoReplyType != "" {
+				t.Fatalf("history lost automatic reply origin: %+v", history)
+			}
+			messages := models.FindMessageByWhere("message.visitor_id=?", f.visitor.VisitorId)
+			if len(messages) != 2 || messages[1].AutoReplyType != kind {
+				t.Fatalf("unpaged history lost automatic reply origin: %+v", messages)
+			}
+			ws.VisitorMessage(f.visitor.VisitorId, live.Content, f.from, 0)
+			var manual ws.ClientMessage
+			if err := json.Unmarshal(transferEvent(t, guest, "message"), &manual); err != nil {
+				t.Fatal(err)
+			}
+			if manual.AutoReplyType != "" {
+				t.Fatalf("same human reply content was labeled automatic: %+v", manual)
+			}
+		})
+	}
+}
 
 func offlineReplyFixture(t *testing.T) transferFixture {
 	t.Helper()
@@ -32,12 +109,24 @@ func offlineReplyCount(t *testing.T, visitorID string) int {
 	return count
 }
 
-func TestAfterHoursReplyForConnectedAgentWithoutOfflineConfig(t *testing.T) {
+func TestOnlineAgentDoesNotSendOfflineReminder(t *testing.T) {
+	f := offlineReplyFixture(t)
+	transferSocket(t, f.from.Name, "", false)
+	messageID, err := models.CreateMessage(f.from.Name, f.visitor.VisitorId, "question", "visitor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws.VisitorAutoReply(f.visitor, f.from, "question", messageID)
+	if count := offlineReplyCount(t, f.visitor.VisitorId); count != 0 {
+		t.Fatalf("online agent produced %d offline reminders", count)
+	}
+}
+
+func TestAfterHoursReplyForOfflineAgentWithoutOfflineConfig(t *testing.T) {
 	f := newTransferFixture(t)
 	if common.IsServiceTime(time.Now()) {
 		t.Skip("requires running outside service hours")
 	}
-	transferSocket(t, f.from.Name, "", false)
 	for i := 0; i < 2; i++ {
 		messageID, err := models.CreateMessage(f.from.Name, f.visitor.VisitorId, "after-hours question", "visitor")
 		if err != nil {

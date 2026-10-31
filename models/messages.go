@@ -29,6 +29,7 @@ type MessageKefu struct {
 	KefuName      string `json:"kefu_name"`
 	KefuAvator    string `json:"kefu_avator"`
 	CreateTime    string `json:"create_time"`
+	AutoReplyType string `json:"auto_reply_type,omitempty"`
 }
 
 func CreateMessage(kefuID string, visitorID string, content string, mesType string, clientMessageID ...string) (uint, error) {

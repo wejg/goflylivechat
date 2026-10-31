@@ -46,6 +46,64 @@ test('older pages evict the newest data while keeping the pending send', () => {
     assert.equal(result.items[199],pending);
     assert.equal(result.newer,true);
 });
+test('history pagination and latest refresh retain failed sends alongside pending sends', () => {
+    const failed={failed:true,content:'retry me',client_message_id:'original-key'};
+    const pending={sending:true,content:'sending'};
+    for(const direction of ['older','newer']){
+        const result=retain(rows(1,220).concat(failed,pending),direction);
+        assert.equal(result.items.length,200);
+        assert.deepEqual(result.items.slice(-2),[failed,pending]);
+        assert.equal(failed.client_message_id,'original-key');
+        assert.equal(result.items[0].id,direction==='older'?1:23);
+        assert.equal(result.items[197].id,direction==='older'?198:220);
+        assert.equal(result.newer,direction==='older');
+        assert.equal(result.older,direction==='newer');
+    }
+});
+test('local sends do not mark persisted history as overflowing and remain bounded', () => {
+    const local=Array.from({length:201},(_,i)=>({failed:true,content:String(i)}));
+    const result=retain(local,'older');
+    assert.equal(result.items.length,200);
+    assert.deepEqual(result.items,local.slice(-200));
+    assert.equal(result.older,false);
+    assert.equal(result.newer,false);
+    const exact=retain(rows(1,198).concat(local.slice(0,2)),'older');
+    assert.equal(exact.newer,false);
+});
+test('history controls use clear labels and show loading state', () => {
+    const {component}=require('../static/js/chat-window.js');
+    const h=(tag,data,children)=>({tag,data,children});
+    for(const loading of [false,true]){
+        const state={older:true,newer:true,loading,items:[],range:{top:0,bottom:0,start:0,end:0},request(){}};
+        const tree=component.render.call(state,h);
+        const buttons=tree.children.filter(node=>node.tag==='button');
+        assert.equal(buttons[0].children[0],loading?'正在加载…':'查看更早消息');
+        assert.equal(buttons.at(-1).children[0],'有新消息，回到底部');
+        assert.ok(buttons.every(button=>button.data.attrs.disabled===loading));
+    }
+});
+
+test('44px history control is included in virtual ranges and preserved reading anchors', () => {
+    const {component}=require('../static/js/chat-window.js');
+    const state=Object.assign({},component.methods,{
+        older:true,items:rows(1,30),_sizes:new Map(),_bottom:false,_dead:false,_settle:0,
+        range:{},rows:()=>[],key:item=>String(item.id),heights(){return this.items.map(()=>80);},
+        $el:{scrollTop:844,clientTop:0,clientHeight:150,scrollHeight:3000,
+            getBoundingClientRect:()=>({top:0}),querySelector:()=>({offsetHeight:44})},
+        publish(){},
+    });
+    state.remember();
+    assert.deepEqual(state._anchor,{key:'11',offset:0});
+    state.updateRange();
+    assert.deepEqual(state.range,visibleRange(state.heights(),800,150));
+    state.items=rows(-1,2).concat(state.items);
+    const raf=global.requestAnimationFrame,caf=global.cancelAnimationFrame;
+    global.requestAnimationFrame=()=>1;global.cancelAnimationFrame=()=>{};
+    try {
+        state.measure();
+        assert.equal(state.$el.scrollTop,1004);
+    } finally {global.requestAnimationFrame=raf;global.cancelAnimationFrame=caf;}
+});
 test('newer pages evict old data and remain bounded across long histories', () => {
     let items=[];
     for(let i=0;i<500;i++) items=retain(items.concat(rows(i*20+1,20)),'newer').items;

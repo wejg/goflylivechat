@@ -208,22 +208,27 @@ func VisitorNotice(visitorId string, notice string) {
 	}
 	_ = WriteJSON(visitor, TypeMessage{Type: "notice", Data: notice})
 }
-func VisitorMessage(visitorId, content string, kefuInfo models.User, messageID uint) {
+func VisitorMessage(visitorId, content string, kefuInfo models.User, messageID uint, replyType ...string) {
 	visitor, ok := ClientList.Get(visitorId)
 	if !ok || visitor == nil {
 		return
 	}
+	autoReplyType := ""
+	if len(replyType) > 0 {
+		autoReplyType = replyType[0]
+	}
 	_ = WriteJSON(visitor, TypeMessage{
 		Type: "message",
 		Data: ClientMessage{
-			MessageId: messageID,
-			Name:      kefuInfo.Nickname,
-			Avator:    kefuInfo.Avator,
-			Id:        kefuInfo.Name,
-			Time:      time.Now().UTC().Format(time.RFC3339),
-			ToId:      visitorId,
-			Content:   content,
-			IsKefu:    "no",
+			MessageId:     messageID,
+			AutoReplyType: autoReplyType,
+			Name:          kefuInfo.Nickname,
+			Avator:        kefuInfo.Avator,
+			Id:            kefuInfo.Name,
+			Time:          time.Now().UTC().Format(time.RFC3339),
+			ToId:          visitorId,
+			Content:       content,
+			IsKefu:        "no",
 		},
 	})
 }
@@ -235,12 +240,12 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 		if err != nil || messageID == 0 {
 			return
 		}
-		VisitorMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
+		VisitorMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID, "keyword")
 		KefuMessage(vistorInfo.VisitorId, reply.Content, kefuInfo, messageID)
 		return
 	}
 	serviceOpen := common.IsServiceTime(time.Now())
-	if serviceOpen && IsKefuOnline(kefuInfo.Name) {
+	if IsKefuOnline(kefuInfo.Name) {
 		return
 	}
 	replyContent := common.ServiceHoursMessage
@@ -251,14 +256,14 @@ func VisitorAutoReply(vistorInfo models.Visitor, kefuInfo models.User, content s
 		return
 	}
 	time.Sleep(1 * time.Second)
-	if common.IsServiceTime(time.Now()) != serviceOpen || (serviceOpen && IsKefuOnline(kefuInfo.Name)) {
+	if common.IsServiceTime(time.Now()) != serviceOpen || IsKefuOnline(kefuInfo.Name) {
 		return
 	}
 	messageID, err := models.CreateAutoReply(kefuInfo.Name, vistorInfo.VisitorId, replyContent, "offline", visitorMessageID)
 	if err != nil || messageID == 0 {
 		return
 	}
-	VisitorMessage(vistorInfo.VisitorId, replyContent, kefuInfo, messageID)
+	VisitorMessage(vistorInfo.VisitorId, replyContent, kefuInfo, messageID, "offline")
 }
 func CleanVisitorExpire() {
 	go func() {

@@ -13,65 +13,90 @@
     <meta name="color-scheme" content="light dark">
     <meta name="keywords" content="Golang 开源在线客服系统"/>
     <meta name="description" content="Golang 开源在线客服系统"/>
-    <title>在线客服</title>
+    <title>客服与帮助</title>
     <link rel="stylesheet" href="/static/cdn/element-ui/2.15.1/theme-chalk/index.min.css">
     <script src="/static/cdn/vue/2.6.11/vue.min.js"></script>
     <script src="/static/cdn/element-ui/2.15.1/index.js"></script>
     <script src="/static/cdn/jquery/3.6.0/jquery.min.js"></script>
 
-    <script src="/static/js/functions.js?v=fgffdwersdccvcbv"></script>
+    <script src="/static/js/functions.js?v=20261101"></script>
     <script src="/static/js/reconnecting-websocket.min.js"></script>
-    <script src="/static/js/chat-window.js?v=4"></script>
+    <script src="/static/js/chat-window.js?v=5"></script>
     <link rel="stylesheet" href="/static/css/chat-window.css?v=3">
     <link rel="stylesheet" href="/static/css/common.css?v=sdsderfrgfgdfdf" />
     <link rel="stylesheet" href="/static/css/icono.min.css" />
     <link rel="stylesheet" href="/static/css/icon/iconfont.css?v=fgjlgfda"/>
-    <link rel="stylesheet" href="/static/css/visitor-chat.css?v=2">
+    <link rel="stylesheet" href="/static/css/visitor-chat.css?v=4">
 </head>
 <body class="visitorBody support-chat">
 <div id="app" class="chatCenter" v-cloak @click="showFaceIcon=false;showIconBtns=false">
     <template>
         <!--Customer Service Code-->
-        <div class="chatEntTitle" v-show="!isIframe">
+        <div class="chatEntTitle support-header" v-show="!isIframe">
             <el-avatar class="chatEntTitleLogo" :size="36" :src="kefuInfo.avatar"></el-avatar>
-            <div class="support-heading"><h1>在线客服</h1><span>很高兴为你提供帮助</span></div>
+            <div class="support-heading"><h1>客服与帮助</h1><span>描述问题，我们会认真查看</span></div>
         </div>
         <div class="chatEntBox">
             <div class="chat-window-status" :class="{'is-online':showKfonline && !socketClosed && !sessionFailed,'is-error':socketClosed || sessionFailed}" role="status"><span class="support-status-dot" aria-hidden="true"></span><span><{chatTitle}></span></div>
+            <section class="support-guide" :class="{'is-collapsed':msgList.length && !guideExpanded}" v-if="historyReady" aria-label="咨询指引">
+                <button v-if="msgList.length" type="button" class="support-guide-toggle" :aria-expanded="String(guideExpanded)" aria-controls="support-guidance" @click="guideExpanded=!guideExpanded"><{guideExpanded ? '收起' : '咨询指引'}> <span aria-hidden="true"><{guideExpanded ? '−' : '+'}></span></button>
+                <div id="support-guidance" v-show="!msgList.length || guideExpanded">
+                    <span class="support-guide-label">咨询指引</span>
+                    <h2><{!showKfonline && !serviceOpen ? '休息时间，也可以留言' : '有什么可以帮你？'}></h2>
+                    <p><{guidanceText()}></p>
+                    <p class="support-hours">服务时间：每天北京时间 10:00–18:00</p>
+                    <div class="support-topics" aria-label="选择问题类型"><button v-for="topic in topics" :key="topic" type="button" @click="selectTopic(topic)"><{topic}></button></div>
+                </div>
+            </section>
             <chat-window ref="messageList" class="chatContext chatVisitorPage chatBox" :items="msgList" :older="showLoadMore" :newer="hasNewer" :loading="historyLoading"
-                         @older="getHistoryMessage" @newer="getNewerMessages" @latest="showLatestMessages" @position="onListPosition" @click.native="$refs.composer.blur()">
+                         @older="getHistoryMessage" @newer="getNewerMessages" @latest="showLatestMessages" @position="onListPosition" @click.native.capture="onMessageClick" @keydown.native.capture="onMessageKeydown" @click.native="$refs.composer.blur()">
                 <template slot-scope="row">
-                    <div class="support-message" :class="{'chatBoxMe':!row.item.is_kefu,'is-consecutive':isConsecutive(row.item)}">
+                    <div class="support-message" :class="{'chatBoxMe':!row.item.is_kefu,'is-consecutive':isConsecutive(row.item),'is-automatic':!!row.item.auto_reply_type}">
                         <div class="chatTime" v-if="messageTime(row.item)"><span><{messageTime(row.item)}></span></div>
-                        <div v-if="row.item.is_kefu" class="support-message-line">
+                        <div v-if="row.item.auto_reply_type" class="support-auto-notice"><span class="support-auto-label"><{row.item.auto_reply_type==='offline' ? '自动提示' : '自动回复'}></span><div v-html="row.item.content"></div></div>
+                        <div v-else-if="row.item.is_kefu" class="support-message-line">
                             <el-avatar class="support-avatar" :size="30" :src="row.item.avator"></el-avatar>
                             <div class="chatMsgContent">
                                 <div class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
                             </div>
                         </div>
                         <div class="kefuMe support-message-line" v-else>
-                            <div class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
+                            <div v-if="row.item.preview" class="chatContent chatContent2 replyContentBtn is-image"><img :src="row.item.preview" :width="row.item.imageWidth" :height="row.item.imageHeight" role="button" tabindex="0" aria-label="查看图片"></div>
+                            <div v-else class="chatContent chatContent2 replyContentBtn" v-html="row.item.content"></div>
+                        </div>
+                        <div v-if="!row.item.is_kefu && (row.item.sending || row.item.failed)" class="support-send-state" :class="{'is-failed':row.item.failed}" role="status">
+                            <span><{row.item.sending ? '发送中…' : (row.item.error || '发送失败')}></span>
+                            <button v-if="row.item.failed" type="button" :disabled="sendDisabled || sessionFailed" @click.stop="retryMessage(row.item)">重新发送</button>
                         </div>
                     </div>
                 </template>
             </chat-window>
-            <div v-if="historyReady && !msgList.length" role="status" style="text-align:center;padding:16px;color:var(--chat-secondary)">暂无消息，可以在下方留言咨询</div>
 
             <div class="chatBoxSend" @click.stop>
+                <p class="support-topic-hint" v-if="topicHint"><{topicHint}></p>
+                <div v-if="attachment" class="support-attachment" aria-label="待发送附件">
+                    <button v-if="attachment.preview" type="button" class="support-preview-image" @click="openImage(attachment.preview)" aria-label="预览待发送图片"><img :src="attachment.preview" @load="attachmentPreviewLoaded" alt="待发送图片"></button>
+                    <div class="support-attachment-info"><div><{attachment.file.name}></div><small><{fileSize(attachment.file.size)}><{attachment.uploading ? ' · 上传中 '+attachment.progress+'%' : ' · 确认后发送'}></small><progress v-if="attachment.uploading" max="100" :value="attachment.progress" aria-label="附件上传进度"></progress></div>
+                    <div class="support-attachment-actions"><button type="button" :disabled="sendDisabled || attachment.uploading || sessionFailed" @click="confirmAttachment"><{attachment.error ? (attachment.uploadedContent ? '重试发送' : '重试上传') : '发送附件'}></button><button type="button" @click="clearAttachment">取消</button></div>
+                    <div v-if="attachment.error" class="support-attachment-error" role="alert"><{attachment.error}></div>
+                </div>
                 <div class="support-composer">
                     <button type="button" class="support-icon support-add" aria-label="添加图片或文件" aria-controls="support-attachments" :aria-expanded="String(showIconBtns)" @click="$refs.composer.blur();showIconBtns=!showIconBtns;showFaceIcon=false">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                     <div class="support-input-wrap">
-                        <textarea ref="composer" class="support-input" rows="1" maxlength="100" placeholder="发送消息…" aria-label="消息内容" v-model="messageContent" @keydown="onComposerKeydown" @focus="showFaceIcon=false;showIconBtns=false"></textarea>
+                        <textarea ref="composer" class="support-input" rows="1" maxlength="1000" :placeholder="!showKfonline && !serviceOpen ? '留言咨询…' : '描述问题…'" aria-label="消息内容" v-model="messageContent" @keydown="onComposerKeydown" @focus="showFaceIcon=false;showIconBtns=false"></textarea>
                     </div>
                     <button type="button" class="support-icon support-face" aria-label="选择表情" aria-controls="support-faces" :aria-expanded="String(showFaceIcon)" @click="$refs.composer.blur();showFaceIcon=!showFaceIcon;showIconBtns=false">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.8 2.7 6.2 2.7 8 0"/><path d="M8.5 9h.01M15.5 9h.01" stroke-width="3"/></svg>
                     </button>
-                    <button type="button" class="support-send" :disabled="sendDisabled || !messageContent.trim()" :aria-label="sendDisabled && !sessionFailed ? '正在发送' : '发送消息'" @pointerdown.prevent @click="chatToUser();showFaceIcon=false;showIconBtns=false">
+                    <button type="button" class="support-send" :disabled="sendDisabled || !!(attachment && attachment.uploading) || !messageContent.trim()" :aria-label="sendDisabled && !sessionFailed ? '正在发送' : '发送消息'" @pointerdown.prevent @click="chatToUser();showFaceIcon=false;showIconBtns=false">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
                     </button>
                 </div>
+                <div class="support-composer-meta" v-if="messageContent.length>=800 || (messageSaved && !showKfonline && !serviceOpen)"><span role="status"><{messageSaved && !showKfonline && !serviceOpen ? '留言已保存，客服将在服务时间查看' : ''}></span><span v-if="messageContent.length>=800"><{messageContent.length}>/1000</span></div>
+                <input ref="imagePicker" type="file" accept="image/jpeg,image/png,image/gif" hidden @change="attachmentChosen($event,true)">
+                <input ref="filePicker" type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.mp3,.mp4" hidden @change="attachmentChosen($event,false)">
                 <div id="support-attachments" class="support-attachments" v-show="showIconBtns">
                     <button type="button" id="uploadImg" @click="uploadImg('/uploadimg')"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg></span>照片</button>
                     <button type="button" id="uploadFile" @click="uploadFile('/uploadfile')"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 14h8M8 17h5"/></svg></span>文件</button>
@@ -87,6 +112,9 @@
             <div class="allNotice" v-html><{kefuInfo.allNotice}></div>
         </div>
 
+        <div v-if="imageViewer" class="support-image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" @click.self="closeImage" @keydown.esc.prevent.stop="closeImage" @keydown.tab.prevent="$refs.imageClose.focus()">
+            <button ref="imageClose" type="button" aria-label="关闭图片预览" @click="closeImage">✕</button><img :src="imageViewer" alt="图片预览">
+        </div>
         <audio id="chatMessageAudio"></audio>
         <audio id="chatMessageSendAudio"></audio>
     </template>
@@ -111,6 +139,13 @@
             msgList:[],
             msgListNum:[],
             messageContent:"",
+            guideExpanded:false,
+            topics:['连接问题','速度慢','购买与支付','其他问题'],
+            topicHint:'',
+            messageSaved:false,
+            attachment:null,
+            imageViewer:'',
+            serviceKnown:false,
             chatTitle:"正在连接...",
             visitor:{},
             face:[],
@@ -148,11 +183,24 @@
             setAgentPresence(online,name,serviceOpen){
                 this.presenceVersion++;
                 const hoursChanged=typeof serviceOpen==='boolean' && this.serviceOpen!==serviceOpen;
-                if(typeof serviceOpen==='boolean') this.serviceOpen=serviceOpen;
-                online=online && this.serviceOpen;
+                if(typeof serviceOpen==='boolean'){this.serviceOpen=serviceOpen;this.serviceKnown=true;}
                 const changed=this.showKfonline!==online;
                 this.showKfonline=online;
-                if(changed || hoursChanged || name || this.chatTitle==='正在连接...' || this.chatTitle==='已连接，正在获取客服状态…'){this.chatTitle=!this.serviceOpen ? '客服已下班（北京时间 10:00–18:00），可以留言咨询' : online ? (name || this.kefuInfo.nickname || '客服')+'在线，为你服务' : '客服暂时离线，可以留言咨询';}
+                if(changed || hoursChanged || name || this.chatTitle==='正在连接...' || this.chatTitle==='已连接，正在获取客服状态…'){
+                    this.chatTitle=online ? '客服在线' : !this.serviceOpen ? '当前休息 · 10:00–18:00（北京时间）' : '客服暂未在线，可以留言';
+                }
+            },
+            guidanceText(){
+                if(this.showKfonline) return this.kefuInfo.welcome || '描述遇到的问题，也可以附上截图，方便客服了解情况。';
+                if(!this.serviceKnown) return '请描述遇到的问题，也可以附上截图。';
+                if(!this.serviceOpen) return '当前为非服务时间。请描述问题并附上截图，客服将在服务时间查看留言。';
+                return '客服暂未在线。你可以先留言，说明问题和出现时间。';
+            },
+            selectTopic(topic){
+                const hints={'连接问题':'请补充使用的设备、出现问题的时间，以及错误截图。','速度慢':'请补充使用的网络、所选线路，以及大约出现问题的时间。','购买与支付':'请描述购买或支付问题；如有截图，请遮挡支付账号等敏感信息。','其他问题':'请描述具体问题，以及希望我们帮助处理的内容。'};
+                this.topicHint=hints[topic] || hints['其他问题'];
+                if(!this.messageContent.trim()) this.messageContent=topic+'：';
+                this.$nextTick(()=>{if(this.$refs.composer) this.$refs.composer.focus();});
             },
             messageDate(item){
                 return new Date(String(item.time || '').replace(' ','T'));
@@ -169,7 +217,7 @@
             },
             isConsecutive(item){
                 const previous=this.msgList[this.msgList.indexOf(item)-1];
-                return previous && previous.is_kefu===item.is_kefu && !this.messageTime(item);
+                return previous && !previous.auto_reply_type && !item.auto_reply_type && previous.is_kefu===item.is_kefu && !this.messageTime(item);
             },
             onComposerKeydown(event){
                 if(event.key!=='Enter' || event.isComposing || event.keyCode===229 || event.shiftKey) return;
@@ -179,7 +227,7 @@
                 const input=this.$refs.composer;
                 if(!input) return;
                 input.style.height='auto';
-                input.style.height=Math.min(input.scrollHeight,120)+'px';
+                input.style.height=Math.min(input.scrollHeight,108)+'px';
             },
             syncViewport(){
                 const viewport=window.visualViewport;
@@ -265,6 +313,7 @@
                     content.is_kefu = true;
                     content.time = msg.time;
                     content.id = msg.message_id;
+                    content.auto_reply_type = msg.auto_reply_type || '';
                     const follow=this.listAtBottom && !this.hasNewer;
                     if(follow){
                         this.newerCursor=Math.max(this.newerCursor || 0,content.id || 0);
@@ -311,79 +360,61 @@
                 window.parent.postMessage(redata,"*");
             },
             chatToUser:function() {
-                if(this.sendDisabled){ return; }
-                var messageContent=this.messageContent.trim();
-                if(messageContent==""||messageContent=="\r\n"){
-                    this.messageContent="";
-                    return;
+                if(this.sendDisabled || (this.attachment && this.attachment.uploading)) return;
+                const raw=this.messageContent.trim();
+                if(!raw){this.messageContent='';return;}
+                if(raw.length>1000){this.$message({message:'消息不能超过 1000 字',type:'warning'});return;}
+                this.messageContent=raw;
+                const failed=this.msgList.find(item=>item.failed && !item.attachment && item.rawContent===raw && item.visitor_id===this.visitor.visitor_id);
+                this.sendMessage(failed || this.outgoingMessage(raw,false));
+            },
+            outgoingMessage(raw,attachment){
+                return {client_message_id:Date.now()+'-'+Math.random().toString(36).slice(2),
+                    visitor_id:this.visitor.visitor_id,rawContent:raw,attachment:!!attachment,
+                    avator:this.visitor.avator,name:this.visitor.name,content:replaceContent(raw),
+                    is_kefu:false,time:this.getNowDate(),sending:false,failed:false,error:'',id:0,
+                    preview:'',imageWidth:150,imageHeight:150};
+            },
+            retryMessage(item){
+                if(!item.failed || item.visitor_id!==this.visitor.visitor_id) return;
+                this.sendMessage(item);
+            },
+            sendMessage(item){
+                if(this.sendDisabled || this.sessionFailed || (this.attachment && this.attachment.uploading)) return;
+                if(this.socketClosed){this.$message({message:'连接已关闭，请重新进入客服',type:'warning'});return;}
+                if(!this.msgList.includes(item) && this.msgList.filter(message=>message.failed || message.sending).length>=200){
+                    this.$message({message:'未发送消息较多，请先重试已有消息',type:'warning'});return;
                 }
-                this.messageContent=messageContent;
-                if(this.socketClosed){
-                    this.$message({
-                        message: '连接已关闭，请刷新页面',
-                        type: 'warning'
-                    });
-                    return;
-                }
-                if(this.hasNewer || !this.listAtBottom){this.showLatestMessages();}
+                if(this.hasNewer || !this.listAtBottom) this.showLatestMessages();
                 this.sendDisabled=true;
-                let _this=this;
-
-                let clientMessageId = Date.now() + '-' + Math.random().toString(36).slice(2);
-                let content = {}
-                content.client_message_id = clientMessageId;
-                content.avator=_this.visitor.avator;
-                content.content = replaceContent(_this.messageContent);
-                content.name = _this.visitor.name;
-                content.is_kefu = false;
-                content.time = _this.getNowDate();
-                content.show_time=false;
-                content.sending=true;
-                _this.msgList.push(content);
-                _this.trimMessages();
-                _this.scrollBottom();
-
-                let mes = {};
-                mes.type = "visitor";
-                mes.content = this.messageContent;
-                mes.client_message_id = clientMessageId;
-                mes.from_id = this.visitor.visitor_id;
-                mes.to_id = this.visitor.to_id;
-                mes.content = this.messageContent;
+                this.messageSaved=false;
+                item.sending=true;item.failed=false;item.error='';
+                if(!this.msgList.includes(item)) this.msgList.push(item);
+                this.trimMessages();this.scrollBottom();
                 let sent=false;
-                $.ajax({
-                    url:"/2/message",
-                    type:"post",
-                    data:mes,
-                    success:function(res){
-                    if(res.code!=200){
-                        _this.$message({
-                            message: res.msg,
-                            type: 'error'
-                        });
-                        return;
-                    }
-                    sent=true;
-                    content.sending=false;
-                    content.id=res.result.message_id;
-                    _this.msgList=_this.msgList.filter(message=>message===content || message.id!=content.id);
-                    _this.sortMessages();
-                    if(_this.messageContent==messageContent){ _this.messageContent = ""; }
-                    clearInterval(_this.timer);
-                    _this.sendSound();
-                    },
-                    error:function(){
-                        _this.$message({message:"发送失败，请重试",type:"error"});
-                    },
-                    complete:function(){
-                        _this.sendDisabled=false;
-                        if(!sent){
-                            const index=_this.msgList.indexOf(content);
-                            if(index!=-1){ _this.msgList.splice(index,1); }
+                $.ajax({url:'/2/message',type:'post',timeout:15000,
+                    data:{type:'visitor',content:item.rawContent,client_message_id:item.client_message_id,from_id:item.visitor_id,to_id:this.visitor.to_id},
+                    success:res=>{
+                        if(item.visitor_id!==this.visitor.visitor_id) return;
+                        if(res.code!==200 || !res.result || !res.result.message_id){
+                            item.error=res.msg || '发送失败';
+                            this.$message({message:item.error,type:'error'});return;
                         }
+                        sent=true;item.sending=false;item.failed=false;item.id=res.result.message_id;
+                        this.msgList=this.msgList.filter(message=>message===item || message.id!==item.id);
+                        this.sortMessages();
+                        if(!item.attachment && this.messageContent===item.rawContent){this.messageContent='';this.topicHint='';}
+                        this.messageSaved=true;
+                        clearInterval(this.timer);this.sendSound();
+                    },
+                    error:()=>{if(item.visitor_id===this.visitor.visitor_id){item.error='发送失败，请重试';this.$message({message:item.error,type:'error'});}},
+                    complete:()=>{
+                        if(item.visitor_id!==this.visitor.visitor_id) return;
+                        this.sendDisabled=this.sessionFailed;
+                        if(!sent){item.sending=false;item.failed=true;this.sortMessages();}
                     }
                 });
-
+                return true;
             },
             OnClose:function() {
                 this.setAgentPresence(false);
@@ -396,6 +427,7 @@
             },
             sessionExpired:function(){
                 if(this.sessionFailed) return;
+                this.clearAttachment();
                 this.setAgentPresence(false);
                 this.sessionFailed=true;
                 this.sendDisabled=true;
@@ -476,7 +508,7 @@
                 if(boundary && (newer || params.page>1)){params[newer?'after_id':'before_id']=newer ? (this.newerCursor || boundary.id) : boundary.id;}
                 const latest=!newer && params.page==1;
                 // 成功后只替换旧快照，保留请求期间收到或仍在发送的消息。
-                const previousMessages=new Set(latest ? this.msgList.filter(message=>!message.sending) : []);
+                const previousMessages=new Set(latest ? this.msgList.filter(message=>!message.sending && !message.failed) : []);
                 let _this=this;
                 $.ajax({
                     url:"/2/messagesPages",
@@ -534,8 +566,8 @@
                 });
             },
             sortMessages:function(){
-                const pending=this.msgList.filter(message=>message.sending);
-                const messages=this.msgList.filter(message=>!message.sending);
+                const pending=this.msgList.filter(message=>message.sending || message.failed);
+                const messages=this.msgList.filter(message=>!message.sending && !message.failed);
                 const persisted=messages.filter(message=>message.id).sort((a,b)=>a.id-b.id);
                 let index=0;
                 this.msgList=messages.map(message=>message.id ? persisted[index++] : message).concat(pending);
@@ -592,18 +624,6 @@
                     if(version===_this.presenceVersion && !_this.sessionFailed && !_this.socketClosed){
                         _this.setAgentPresence(_this.kefuInfo.online===true,_this.kefuInfo.nickname || '客服',_this.kefuInfo.service_open);
                     }
-                    if(!_this.kefuInfo.welcome || _this.hasNewer || !_this.listAtBottom) return;
-                    var msg={
-                        content:replaceContent(_this.kefuInfo.welcome),
-                        avator:_this.kefuInfo.avatar,
-                        name :_this.kefuInfo.nickname,
-                        time:_this.getNowDate(),
-                        is_kefu:true,
-                    }
-                    _this.msgList.push(msg);
-                    _this.trimMessages();
-                    _this.scrollBottom();
-                    _this.alertSound();
                 });
             },
             initCss:function(){
@@ -649,124 +669,115 @@
             },
             faceIconClick:function(index){
                 const token=this.face[index].emoji;
-                if(this.messageContent.length+token.length>100) return;
+                if(this.messageContent.length+token.length>1000) return;
                 this.messageContent+=token;
             },
-            uploadImg:function (url){
-                let _this=this;
-                $('#uploadImg').after('<input type="file" accept="image/gif,image/jpeg,image/jpg,image/png" id="uploadImgFile" name="file" style="display:none" >');
-                $("#uploadImgFile").click();
-                $("#uploadImgFile").change(function (e) {
-                    var formData = new FormData();
-                    var file = $("#uploadImgFile")[0].files[0];
-                    formData.append("imgfile",file);
-                    if(APP_CHAT_ENABLED) formData.append("visitor_id",_this.visitor.visitor_id);
-                    filter(file) && $.ajax({
-                        url: url || '',
-                        type: "post",
-                        data: formData,
-                        contentType: false,
-                        processData: false,
-                        dataType: 'JSON',
-                        mimeType: "multipart/form-data",
-                        success: function (res) {
-                            if(res.code!=200){
-                                _this.$message({
-                                    message: res.msg,
-                                    type: 'error'
-                                });
-                            }else{
-                                _this.messageContent+='img[/' + res.result.path + ']';
-                                _this.chatToUser();
-                            }
-                        },
-                        error: function (data) {
-                            console.log(data);
-                        }
-                    });
-                });
+            uploadImg(){this.$refs.imagePicker.click();},
+            uploadFile(){this.$refs.filePicker.click();},
+            attachmentChosen(event,image){
+                this.selectAttachment(event.target.files && event.target.files[0],image);
+                event.target.value='';
             },
-            uploadFile:function (url){
-                let _this=this;
-                $('#uploadFile').after('<input type="file" id="uploadRealFile" name="file2" style="display:none" >');
-                $("#uploadRealFile").click();
-                $("#uploadRealFile").change(function (e) {
-                    var formData = new FormData();
-                    var file = $("#uploadRealFile")[0].files[0];
-                    formData.append("realfile",file);
-                    if(APP_CHAT_ENABLED) formData.append("visitor_id",_this.visitor.visitor_id);
-                    console.log(formData);
-                    $.ajax({
-                        url: url || '',
-                        type: "post",
-                        data: formData,
-                        contentType: false,
-                        processData: false,
-                        dataType: 'JSON',
-                        mimeType: "multipart/form-data",
-                        success: function (res) {
-                            if(res.code!=200){
-                                _this.$message({
-                                    message: res.msg,
-                                    type: 'error'
-                                });
-                            }else{
-                                var data=JSON.stringify({
-                                    name:res.result.name,
-                                    ext:res.result.ext,
-                                    size:res.result.size,
-                                    path:'/' + res.result.path,
-                                })
-                                _this.messageContent+='attachment['+data+']';
-                                _this.chatToUser();
-                            }
-                        },
-                        error: function (data) {
-                            console.log(data);
-                        }
-                    });
-                });
+            selectAttachment(file,image){
+                if(!file || this.sessionFailed) return;
+                if(this.attachment){this.$message({message:'请先发送或取消当前附件',type:'warning'});return;}
+                const imageTypes=['image/jpeg','image/png','image/jpg','image/gif'];
+                const extensions=['png','jpg','jpeg','gif','webp','pdf','txt','csv','doc','docx','xls','xlsx','ppt','pptx','zip','rar','7z','mp3','mp4'];
+                const ext=String(file.name || '').split('.').pop().toLowerCase();
+                if((image && !imageTypes.includes(file.type)) || (!image && !extensions.includes(ext))){this.$message({message:'不支持此文件类型',type:'warning'});return;}
+                const maxSize=(image ? 10 : 20)*1024*1024;
+                if(file.size>maxSize){this.$message({message:image ? '图片不能超过 10MB' : '文件不能超过 20MB',type:'warning'});return;}
+                this.attachment={file,image,preview:image ? URL.createObjectURL(file) : '',imageWidth:150,imageHeight:150,uploading:false,progress:0,error:'',uploadedContent:''};
+                this.messageSaved=false;
+                this.showIconBtns=false;this.showFaceIcon=false;
             },
-            onPasteUpload:function(event){
-                let items = event.clipboardData && event.clipboardData.items;
-                let file = null
-                if (items && items.length) {
-                    for (var i = 0; i < items.length; i++) {
-                        if (items[i].type.indexOf('image') !== -1) {
-                            file = items[i].getAsFile()
-                        }
-                    }
+            clearAttachment(){
+                const item=this.attachment;
+                if(!item) return;
+                this.attachment=null;
+                if(this._uploadRequest){this._uploadRequest.abort();this._uploadRequest=null;}
+                if(this.imageViewer===item.preview) this.closeImage();
+                if(item.preview) URL.revokeObjectURL(item.preview);
+            },
+            attachmentPreviewLoaded(event){
+                const item=this.attachment,image=event.target;
+                if(!item || image.src!==item.preview || !image.naturalWidth || !image.naturalHeight) return;
+                const scale=Math.min(180/image.naturalWidth,300/image.naturalHeight,1);
+                item.imageWidth=Math.max(1,Math.round(image.naturalWidth*scale));
+                item.imageHeight=Math.max(1,Math.round(image.naturalHeight*scale));
+            },
+            releaseMessagePreviews(){
+                if(!this._messagePreviews) return;
+                const used=new Set(this.msgList.map(message=>message.preview));
+                used.add(this.imageViewer);
+                for(const url of this._messagePreviews){
+                    if(!used.has(url)){URL.revokeObjectURL(url);this._messagePreviews.delete(url);}
                 }
-                if (!file) {
+            },
+            fileSize(bytes){return bytes<1024*1024 ? Math.ceil(bytes/1024)+' KB' : (bytes/(1024*1024)).toFixed(1)+' MB';},
+            confirmAttachment(){
+                const item=this.attachment;
+                if(!item || item.uploading || this.sendDisabled || this.sessionFailed) return;
+                if(this.socketClosed){this.$message({message:'连接已关闭，请重新进入客服',type:'warning'});return;}
+                if(item.uploadedContent){
+                    const message=this.outgoingMessage(item.uploadedContent,true);
+                    message.preview=item.preview;message.imageWidth=item.imageWidth;message.imageHeight=item.imageHeight;
+                    if(this.sendMessage(message)){
+                        if(item.preview){
+                            if(!this._messagePreviews) this._messagePreviews=new Set();
+                            this._messagePreviews.add(item.preview);
+                            item.preview='';
+                        }
+                        this.clearAttachment();
+                    }
                     return;
                 }
-                let _this=this;
-                var formData = new FormData();
-                formData.append('imgfile', file);
-                if(APP_CHAT_ENABLED) formData.append('visitor_id',_this.visitor.visitor_id);
-                $.ajax({
-                    url: '/uploadimg',
-                    type: "post",
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    dataType: 'JSON',
-                    mimeType: "multipart/form-data",
-                    success: function (res) {
-                        if(res.code!=200){
-                            _this.$message({
-                                message: res.msg,
-                                type: 'error'
-                            });
-                        }else{
-                            _this.messageContent+='img[/' + res.result.path + ']';
-                            _this.chatToUser();
-                        }
+                item.uploading=true;item.error='';item.progress=0;
+                const form=new FormData();form.append(item.image ? 'imgfile' : 'realfile',item.file);
+                if(APP_CHAT_ENABLED) form.append('visitor_id',this.visitor.visitor_id);
+                const visitor=this.visitor.visitor_id;
+                this._uploadRequest=$.ajax({url:item.image ? '/uploadimg' : '/uploadfile',type:'post',timeout:120000,
+                    data:form,contentType:false,processData:false,dataType:'json',
+                    xhr:()=>{
+                        const xhr=new XMLHttpRequest();
+                        xhr.upload.addEventListener('progress',event=>{if(event.lengthComputable && this.attachment===item) item.progress=Math.round(event.loaded/event.total*100);});
+                        return xhr;
                     },
-                    error: function (data) {
-                        console.log(data);
-                    }
+                    success:res=>{
+                        if(this.attachment!==item || visitor!==this.visitor.visitor_id || this.sessionFailed) return;
+                        if(res.code!==200 || !res.result || !res.result.path){item.error=res.msg || '上传失败，请重试';return;}
+                        const result=res.result;
+                        item.uploadedContent=item.image ? 'img[/'+result.path+']' : 'attachment['+JSON.stringify({name:result.name,ext:result.ext,size:result.size,path:'/'+result.path})+']';
+                        this._uploadRequest=null;item.uploading=false;
+                        this.confirmAttachment();
+                    },
+                    error:()=>{if(this.attachment===item) item.error='上传失败，请重试';},
+                    complete:()=>{if(this.attachment===item){item.uploading=false;this._uploadRequest=null;}}
                 });
+            },
+            onPasteUpload(event){
+                const items=event.clipboardData && event.clipboardData.items;
+                if(!items) return;
+                for(const item of items){
+                    if(item.type.indexOf('image/')===0){event.preventDefault();this.selectAttachment(item.getAsFile(),true);return;}
+                }
+            },
+            onMessageClick(event){
+                const target=event.target;
+                if(target.tagName==='IMG' && !target.hasAttribute('alt') && !target.closest('.productCard')){
+                    event.preventDefault();event.stopPropagation();this.openImage(target.src);
+                }
+            },
+            onMessageKeydown(event){if(event.key==='Enter' || event.key===' '){this.onMessageClick(event);}},
+            openImage(src){
+                this._imageFocus=document.activeElement;
+                this.imageViewer=src;
+                this.$nextTick(()=>{if(this.$refs.imageClose) this.$refs.imageClose.focus();});
+            },
+            closeImage(){
+                this.imageViewer='';
+                if(this._imageFocus && this._imageFocus.isConnected) this._imageFocus.focus();
+                this._imageFocus=null;
             },
             alertSound:function(){
                 alertSound("chatMessageAudio",'/static/images/alert2.ogg');
@@ -810,7 +821,9 @@
             },
         },
         watch:{
-            messageContent(){this.$nextTick(this.resizeComposer);},
+            messageContent(){if(this.messageContent) this.messageSaved=false;this.$nextTick(this.resizeComposer);},
+            msgList(){this.releaseMessagePreviews();},
+            imageViewer(){this.releaseMessagePreviews();},
         },
         mounted:function() {
             document.addEventListener('paste', this.onPasteUpload);
@@ -822,6 +835,8 @@
         },
         beforeDestroy:function(){
             document.removeEventListener('paste',this.onPasteUpload);
+            this.clearAttachment();
+            if(this._messagePreviews){for(const url of this._messagePreviews) URL.revokeObjectURL(url);this._messagePreviews.clear();}
             if(window.visualViewport){
                 window.visualViewport.removeEventListener('resize',this.syncViewport);
                 window.visualViewport.removeEventListener('scroll',this.syncViewport);

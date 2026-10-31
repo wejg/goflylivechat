@@ -484,3 +484,27 @@ func TestMessageClientIDIsIdempotent(t *testing.T) {
 		t.Fatalf("saved message count=%d, want 1", got)
 	}
 }
+
+func TestVisitorThousandCharacterMessageRetryIsIdempotent(t *testing.T) {
+	f := newTransferFixture(t)
+	content := strings.Repeat("字", 1000)
+	values := url.Values{
+		"from_id":           {f.visitor.VisitorId},
+		"to_id":             {f.from.Name},
+		"content":           {content},
+		"type":              {"visitor"},
+		"client_message_id": {"long-retry-" + tools.Uuid()},
+	}
+	first := f.request(t, "POST", "/2/message", "", values)
+	second := f.request(t, "POST", "/2/message", "", values)
+	if first.Code != 200 || second.Code != 200 || first.Result.MessageID == 0 || first.Result.MessageID != second.Result.MessageID {
+		t.Fatalf("1000-character retry: first=%+v second=%+v", first, second)
+	}
+	var messages []models.Message
+	if err := models.DB.Where("visitor_id=? AND client_message_id=?", f.visitor.VisitorId, values.Get("client_message_id")).Find(&messages).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || messages[0].Content != content {
+		t.Fatalf("expected one complete 1000-character message, got %d rows", len(messages))
+	}
+}
