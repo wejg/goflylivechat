@@ -20,7 +20,21 @@ func AppChatEnabled() bool {
 	enabled, _ := strconv.ParseBool(os.Getenv("GOFLY_APP_CHAT_ENABLED"))
 	return enabled
 }
+func AppPushEnabled() bool {
+	enabled, _ := strconv.ParseBool(os.Getenv("GOFLY_APP_PUSH_ENABLED"))
+	return AppChatEnabled() && enabled
+}
+
 func ValidateAppChatConfig() error {
+	if value := os.Getenv("GOFLY_APP_PUSH_ENABLED"); value != "" {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return errors.New("invalid GOFLY_APP_PUSH_ENABLED")
+		}
+		if enabled && !AppChatEnabled() {
+			return errors.New("App push requires GOFLY_APP_CHAT_ENABLED")
+		}
+	}
 	value := os.Getenv("GOFLY_APP_CHAT_ENABLED")
 	if value != "" {
 		if _, err := strconv.ParseBool(value); err != nil {
@@ -37,8 +51,9 @@ func ValidateAppChatConfig() error {
 	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return errors.New("GOFLY_APP_API_BASE_URL must be an absolute origin")
 	}
-	if u.Scheme != "https" && !(u.Scheme == "http" && os.Getenv("GOFLY_ENV") == "development") {
-		return errors.New("App API requires HTTPS")
+	// 同机共享 Docker 网络只对固定 App 容器地址允许明文 HTTP。
+	if u.Scheme != "https" && !(u.Scheme == "http" && (os.Getenv("GOFLY_ENV") == "development" || u.Host == "myapp:8080")) {
+		return errors.New("App API requires HTTPS or the internal Docker origin http://myapp:8080")
 	}
 	if id := os.Getenv("GOFLY_APP_ID"); id == "" || len(id) > 80 {
 		return errors.New("GOFLY_APP_ID is required and must fit 80 bytes")
@@ -116,7 +131,7 @@ func AppSourceRequest(ctx context.Context, path string, input, output interface{
 	if !AppChatEnabled() {
 		return errors.New("App chat disabled")
 	}
-	if path != "/api/internal/support/tickets/consume" && path != "/api/internal/support/sessions/check" {
+	if path != "/api/internal/support/tickets/consume" && path != "/api/internal/support/sessions/check" && path != "/api/internal/support/notifications" {
 		return errors.New("invalid App source path")
 	}
 	body, err := json.Marshal(input)

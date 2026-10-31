@@ -99,6 +99,9 @@ func createMessage(kefuID, visitorID, content, mesType, autoReplyType string, vi
 		return 0, err
 	}
 	if mesType == "kefu" {
+		if err := queueAppPush(db, v); err != nil {
+			return 0, err
+		}
 		if err := db.Commit().Error; err != nil {
 			return 0, err
 		}

@@ -22,6 +22,7 @@ require_command() { command -v "$1" >/dev/null 2>&1 || fail "本机缺少命令�
 valid_port() { [[ "$1" =~ ^[1-9][0-9]{0,4}$ ]] && (( $1 <= 65535 )); }
 
 [[ "$#" == 0 ]] || fail "用法：$0（首次运行按提示填写 SSH 信息）"
+[[ -f "$PROJECT_ROOT/.env" ]] || fail "缺少本机配置：$PROJECT_ROOT/.env"
 SAVE_CONFIG=0
 if [[ -z "$DEPLOY_HOST" && ! -f "$DEPLOY_CONFIG" && -t 0 ]]; then
     printf '首次部署，请填写服务器 SSH 信息（回车使用默认值）。\n'
@@ -111,6 +112,8 @@ printf '上传部署文件...\n'
 COPYFILE_DISABLE=1 tar --exclude='._*' --exclude='.DS_Store' -C "$PROJECT_ROOT" -czf - \
     docker-compose.yml compose.production.yml scripts/install-linux.sh |
     ssh_run "umask 077; mkdir -p '$REMOTE_DIR' && tar -xzf - -C '$REMOTE_DIR'"
+printf '上传本机 .env（校验后替换，原配置备份为 .env.backup）...\n'
+ssh_run "umask 077; cat > '$REMOTE_DIR/.env.upload' && chmod 600 '$REMOTE_DIR/.env.upload'" < "$PROJECT_ROOT/.env"
 remote_install prepare
 
 printf '本机构建 %s 镜像...\n' "$platform"

@@ -54,7 +54,9 @@ GOFLY_SESSION_SECRET=<另一个随机密钥C>
 
 `GOFLY_APP_API_BASE_URL` 是 App API 的固定 origin，不包含 `/api`；后端自动追加内部接口路径。`GOFLY_APP_PUBLIC_ORIGIN` 必须与浏览器地址栏完全相同，包括端口，不带末尾斜杠；反代后也填写外部 HTTPS origin。`GOFLY_ALLOWED_ORIGINS` 同时包含该 origin，否则 WebSocket 会被拒绝。默认客服账号必须存在。两端 `app_id`、服务密钥必须一致；密钥 B/C 不与 A 共用。
 
-每个密钥单独运行 `openssl rand -hex 32` 生成，不要使用示例占位值，也不要把密钥放入客户端、网页配置或 Git。开启 App 模式时 GoFly 拒绝缺失/弱 JWT 密钥；更换 JWT 密钥会使旧客服登录 Token 失效，客服需要重新登录。生产要求 HTTPS；仅本地开发可设置 App 的 `APP_ENV=development` 和 GoFly 的 `GOFLY_ENV=development` 使用 HTTP。
+每个密钥单独运行 `openssl rand -hex 32` 生成，不要使用示例占位值，也不要把密钥放入客户端、网页配置或 Git。开启 App 模式时 GoFly 拒绝缺失/弱 JWT 密钥；更换 JWT 密钥会使旧客服登录 Token 失效，客服需要重新登录。生产公开地址要求 HTTPS；后端内部调用仅对 `http://myapp:8080` 允许 HTTP，其他 HTTP 地址仅供显式 development 环境使用。
+
+同机生产部署：两个项目的 `compose.production.yml` 将 App 的 `myapp` 和客服的 `app` 加入外部共享网络 `gofly-app`，同时保留各自 `default` 网络连接数据库。两端部署脚本自动创建或复用共享网络。客服设置 `GOFLY_APP_API_BASE_URL=http://myapp:8080`，使用容器服务名和容器内部端口直接调用 App；仍校验 `X-Support-Key`，不经过公网或反向代理。`SUPPORT_CHAT_URL`、`GOFLY_APP_PUBLIC_ORIGIN` 和允许来源仍填写手机可访问的公网 HTTPS 地址。先部署 App 后端 `myapp`，再部署客服；手工运行生产 Compose 时需先执行 `docker network create gofly-app`（已存在则跳过）。仅同机共享网络适用此 HTTP 例外，跨机器继续使用 HTTPS。
 
 局域网联调要把客户端打开的聊天 URL 配置为电脑的局域网 IP（例如 `http://192.168.1.20:8081/livechat`），并同步配置 public origin/allowed origins；手机的 `localhost` 指手机自己。两个容器不在同一网络时，后端内部请求使用双方实际可达地址，不能使用另一个容器的 `localhost`。
 
@@ -88,3 +90,27 @@ GoFly 遗留 packr/envy 依赖会在工作目录存在 `.env` 时覆盖同名进
 2026-10-22 验证结果：两端全部 Go 包编译通过；App 认证/客服/配置/迁移相关测试及定向 race 测试通过；GoFly 普通套件通过（跳过会对外发信/导入业务库的两个旧测试），App/附件定向 race 测试通过。两个真实服务使用独立 PostgreSQL 18.6 / MariaDB 10.11，Chromium 浏览器验证签发、兑换、消息发送、客服 WS 回复、附件隔离、同页切号撤销、App 来源撤销全部通过，脚本错误 0；桌面和手机尺寸输入框完整可见。
 
 App 原有协议页品牌文案断言仍失败，本次未改协议；GoFly 全量 race 有旧 unread 测试切换全局 DB 与自动回复协程冲突，不能声称全量 race 无问题。未运行真实 Safari/iOS/Android WebView、生产迁移或部署。
+
+## App 消息推送（极光）
+
+`GOFLY_APP_PUSH_ENABLED=false` 默认关闭，不需要新增极光密钥；极光 AppKey/Master Secret 只由 App 后端保管。完成 App 后端配置与迁移后，把此开关设为 `true`，复用现有 `GOFLY_APP_API_BASE_URL`、`GOFLY_APP_ID`、`GOFLY_APP_INTEGRATION_KEY`。`docker-compose.yml` 已透传开关，环境示例保留关闭值。
+
+开启时，人工、关键词和离线自动回复统一在聊天消息保存事务中写入 MySQL `app_push_outbox`。只为 `app_visitor_mapping` 中属于当前 App 来源的访客入队；用户自己发送的消息、普通网页访客、重复客户端消息和未成功保存的回复不产生新推送。是否有在线 WebSocket 不影响入队，原有 WebSocket 收发照常。
+
+服务启动时 `EnsureChatSchema` 幂等创建出站表。后台 worker 每 3 秒取最多 10 条，使用 30 秒租约防并发抢占，调用下面的内部接口：
+
+```http
+POST /api/internal/support/notifications
+Content-Type: application/json
+X-Support-Key: <现有服务密钥>
+```
+
+```json
+{"app_id":"go_home_prod","user_id":"123","message_id":"456"}
+```
+
+三个字段均为字符串，消息 ID 使用 GoFly 实际落库编号；不发送聊天正文、App Token 或客服票据。App 后端以来源和消息 ID 幂等入队，响应 `{"code":"ok","data":{"accepted":true}}` 后 GoFly 删除出站任务。App 后端负责通用通知文案、设备路由以及到极光的重试。GoFly 到 App 的请求禁止重定向，沿用 HTTPS 和服务密钥验证。
+
+失败保存在库中，5 秒起指数退避，最多 1 小时一次、16 次；超过 24 小时丢弃，每批最多清理 100 条过期任务。暂时关闭开关会暂停已有任务，也停止为新回复入队；重新开启后，只恢复尚未过期的任务。服务优雅退出先停 HTTP，再取消并等待 worker，最后关闭数据库。投递是至少一次，必须保留 App 后端的幂等约束。
+
+专项测试：在一次性 MySQL/MariaDB 上导入 `import.sql`，设置 `GOFLY_TEST_DB=1` 和对应 `GOFLY_DB_*`，执行 `go test ./common ./models -run TestAppPush -count=1`。测试覆盖实际保存、普通访客、关闭开关、人工/自动回复、重复消息、HTTP 失败退避与恢复、成功确认删除、入队失败事务回滚。无真实极光凭证时不验证手机送达。

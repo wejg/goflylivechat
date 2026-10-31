@@ -13,7 +13,8 @@ HTTP_PORT="$4"
 [[ "$(id -u)" == 0 && "$(uname -s)" == Linux ]] || fail "请使用 Linux root 账号"
 cd "$REMOTE_DIR"
 
-compose() { docker compose -p goflylivechat --env-file .env -f docker-compose.yml -f compose.production.yml "$@"; }
+ENV_FILE=.env
+compose() { docker compose -p goflylivechat --env-file "$ENV_FILE" -f docker-compose.yml -f compose.production.yml "$@"; }
 random_secret() { od -An -N32 -tx1 /dev/urandom | tr -d ' \n'; }
 db_sql() {
     compose exec -T db sh -c 'MYSQL_PWD="$MARIADB_PASSWORD" exec mariadb -u "$MARIADB_USER" "$MARIADB_DATABASE" --batch --skip-column-names'
@@ -47,7 +48,8 @@ EOF
     compose_version="$(docker compose version --short)" || fail "需要安装 Docker Compose 插件 >= 2.24.4"
     compose_version="${compose_version#v}"
     [[ "$(printf '%s\n' 2.24.4 "$compose_version" | sort -V | head -n 1)" == 2.24.4 ]] || fail "Docker Compose 版本过低，需要 >= 2.24.4"
-    if [[ ! -f .env ]]; then
+    if [[ -f .env.upload ]]; then ENV_FILE=.env.upload; fi
+    if [[ ! -f "$ENV_FILE" ]]; then
         existing_volumes="$(docker volume ls -q --filter label=com.docker.compose.project=goflylivechat)"
         [[ -z "$existing_volumes" ]] || fail "已有 GoFly 数据卷但缺少 .env，请恢复原配置，不能生成新密码"
         {
@@ -59,16 +61,24 @@ EOF
         } > .env.new
         mv .env.new .env
     fi
-    chmod 600 .env
+    chmod 600 "$ENV_FILE"
     for key in GOFLY_DB_PASSWORD MARIADB_ROOT_PASSWORD GOFLY_SESSION_SECRET GOFLY_JWT_SECRET; do
-        [[ "$(grep -c "^$key=" .env || true)" == 1 ]] && grep -Eq "^$key=.{32,}$" .env ||
-            fail "远端 .env 的 $key 必须唯一且至少 32 字符；脚本不会覆盖已有配置"
-        if grep -Eq "^$key=.*(replace-with|change-me|change-root-me)" .env; then
-            fail "远端 .env 的 $key 仍是示例值，请先更换"
+        [[ "$(grep -c "^$key=" "$ENV_FILE" || true)" == 1 ]] && grep -Eq "^$key=.{32,}$" "$ENV_FILE" ||
+            fail "$ENV_FILE 的 $key 必须唯一且至少 32 字符；未替换原配置"
+        if grep -Eq "^$key=.*(replace-with|change-me|change-root-me)" "$ENV_FILE"; then
+            fail "$ENV_FILE 的 $key 仍是示例值，请先更换"
         fi
     done
     compose config --quiet
-    printf 'Docker 和生产配置已就绪，已有 .env 保持不变。\n'
+    docker network inspect gofly-app >/dev/null 2>&1 || docker network create gofly-app >/dev/null
+    if [[ "$ENV_FILE" == .env.upload ]]; then
+        if [[ -f .env ]]; then
+            cp .env .env.backup
+            chmod 600 .env.backup
+        fi
+        mv .env.upload .env
+    fi
+    printf 'Docker 和生产配置已就绪；上传的 .env 已生效，原配置保存在 .env.backup（如存在）。\n'
     exit 0
 fi
 

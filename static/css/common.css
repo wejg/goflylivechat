@@ -316,7 +316,7 @@ a{color: #07a9fe;text-decoration: none;}
 }
 .kefuFuncBox .faceBox{
     position: absolute;
-    bottom:100px;
+    bottom:100%;
 }
 .kefuFolderBtn{vertical-align: middle;}
 .visitorReply{

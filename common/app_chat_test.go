@@ -28,6 +28,37 @@ func TestAppConfigRejectsUnsafeOrigins(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAppConfigAllowsOnlyFixedDockerHTTPOriginInProduction(t *testing.T) {
+	t.Setenv("GOFLY_APP_CHAT_ENABLED", "true")
+	t.Setenv("GOFLY_JWT_SECRET", "fedcba9876543210fedcba9876543210")
+	t.Setenv("GOFLY_APP_ID", "test")
+	t.Setenv("GOFLY_APP_INTEGRATION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("GOFLY_ENV", "production")
+	t.Setenv("GOFLY_APP_PUBLIC_ORIGIN", "https://chat.example")
+	for _, origin := range []string{"http://myapp:8080", "http://myapp:8080/"} {
+		t.Setenv("GOFLY_APP_API_BASE_URL", origin)
+		if err := ValidateAppChatConfig(); err != nil {
+			t.Fatalf("Docker origin %s rejected: %v", origin, err)
+		}
+	}
+	for _, origin := range []string{"http://myapp", "http://myapp:3088", "http://myapp.example:8080", "http://127.0.0.1:8080", "http://myapp:8080/api", "http://myapp:8080?x=1", "http://user@myapp:8080"} {
+		t.Setenv("GOFLY_APP_API_BASE_URL", origin)
+		if ValidateAppChatConfig() == nil {
+			t.Fatalf("unexpected HTTP origin accepted: %s", origin)
+		}
+	}
+	t.Setenv("GOFLY_APP_API_BASE_URL", "http://myapp:8080")
+	t.Setenv("GOFLY_APP_PUBLIC_ORIGIN", "http://chat.example")
+	if ValidateAppChatConfig() == nil {
+		t.Fatal("internal HTTP exception allowed public HTTP origin")
+	}
+	t.Setenv("GOFLY_APP_PUBLIC_ORIGIN", "https://chat.example")
+	t.Setenv("GOFLY_APP_INTEGRATION_KEY", "")
+	if ValidateAppChatConfig() == nil {
+		t.Fatal("internal HTTP exception bypassed service credentials")
+	}
+}
 func TestAppCookieOriginDoesNotTrustForwardedHeaders(t *testing.T) {
 	t.Setenv("GOFLY_ENV", "development")
 	t.Setenv("GOFLY_APP_PUBLIC_ORIGIN", "")
@@ -100,5 +131,46 @@ func TestAppConfigRequiresStrongAgentSigningKey(t *testing.T) {
 	t.Setenv("GOFLY_JWT_SECRET", "")
 	if err := ValidateAppChatConfig(); err != nil {
 		t.Fatal("legacy disabled mode unexpectedly blocked", err)
+	}
+}
+
+func TestAppPushEndpointAuthenticatedContract(t *testing.T) {
+	t.Setenv("GOFLY_APP_CHAT_ENABLED", "true")
+	t.Setenv("GOFLY_APP_PUSH_ENABLED", "true")
+	t.Setenv("GOFLY_JWT_SECRET", "fedcba9876543210fedcba9876543210")
+	t.Setenv("GOFLY_APP_ID", "push_test")
+	t.Setenv("GOFLY_APP_INTEGRATION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("GOFLY_ENV", "development")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]string
+		if r.URL.Path != "/api/internal/support/notifications" || r.Header.Get("X-Support-Key") != "0123456789abcdef0123456789abcdef" || json.NewDecoder(r.Body).Decode(&payload) != nil || len(payload) != 3 || payload["message_id"] != "42" || payload["user_id"] != "123" {
+			t.Error("incorrect authenticated push contract")
+		}
+		w.Write([]byte(`{"code":"ok","data":{"accepted":true}}`))
+	}))
+	defer server.Close()
+	t.Setenv("GOFLY_APP_API_BASE_URL", server.URL)
+	var output struct {
+		Accepted bool `json:"accepted"`
+	}
+	err := AppSourceRequest(context.Background(), "/api/internal/support/notifications", map[string]string{"app_id": "push_test", "user_id": "123", "message_id": "42"}, &output)
+	if err != nil || !output.Accepted {
+		t.Fatalf("push rejected: %v accepted=%v", err, output.Accepted)
+	}
+}
+
+func TestAppPushConfigDefaultsOffAndRequiresChat(t *testing.T) {
+	t.Setenv("GOFLY_APP_CHAT_ENABLED", "false")
+	t.Setenv("GOFLY_APP_PUSH_ENABLED", "")
+	if AppPushEnabled() {
+		t.Fatal("empty push config enabled")
+	}
+	t.Setenv("GOFLY_APP_PUSH_ENABLED", "true")
+	if AppPushEnabled() || ValidateAppChatConfig() == nil {
+		t.Fatal("push enabled without chat")
+	}
+	t.Setenv("GOFLY_APP_PUSH_ENABLED", "invalid")
+	if ValidateAppChatConfig() == nil {
+		t.Fatal("invalid push switch accepted")
 	}
 }

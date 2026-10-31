@@ -102,6 +102,11 @@ func run() {
 	router.InitViewRouter(engine)
 	router.InitApiRouter(engine)
 
+	pushCtx, stopPush := context.WithCancel(context.Background())
+	pushDone := make(chan struct{})
+	go func() { defer close(pushDone); models.RunAppPush(pushCtx) }()
+	defer func() { stopPush(); <-pushDone }()
+
 	// Background services
 	tools.NewLimitQueue()
 	ws.CleanVisitorExpire()
@@ -132,6 +137,8 @@ func run() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Println("server shutdown:", err)
 	}
+	stopPush()
+	<-pushDone
 	models.CloseDB()
 	log.Println("Server stopped")
 }

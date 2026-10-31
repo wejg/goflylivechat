@@ -8,7 +8,7 @@
     <script src="/static/cdn/vue/2.6.11/vue.min.js"></script>
     <script src="/static/cdn/element-ui/2.15.1/index.js"></script>
     <script src="/static/cdn/jquery/3.6.0/jquery.min.js"></script>
-    <link rel="stylesheet" href="/static/css/common.css?v=dgftr65ujhfg">
+    <link rel="stylesheet" href="/static/css/common.css?v=dgftr65ujhfg2">
     <script src="/static/js/functions.js"></script>
     <script src="/static/js/reconnecting-websocket.min.js"></script>
     <script src="/static/js/chat-window.js?v=4"></script>
@@ -34,7 +34,7 @@
     </style>
 </head>
 <body>
-<div id="app" class="chatMainPage">
+<div id="app" class="chatMainPage" @click="showFaceIcon=false">
     <template>
         <el-row>
             <el-col :span="5">

@@ -83,7 +83,7 @@ For domain access, configure a reverse proxy to port 8081 to hide the port numbe
 
 ### Docker deployment
 
-Copy `.env.example` to `.env`, replace the passwords and session secret, then run:
+Configure `.env` with real database passwords and long random session/JWT secrets, then run:
 
 ```bash
 docker compose up -d --build
@@ -107,11 +107,13 @@ bash scripts/deploy-linux.sh
 
 首次运行按提示输入服务器地址、SSH 端口（默认 22）、用户（默认 root）及可选私钥路径。SSH 连通后，脚本自动创建本机 `scripts/deploy.env` 并设置权限 600；以后直接运行同一条命令。登录密码由 SSH 提示输入，不保存；使用密钥或 ssh-agent 时可免密登录。配置文件不会进入 Git 或 Docker 构建上下文。
 
-脚本会安装 Docker、生成独立生产密钥、本机构建并上传应用镜像、启动 MariaDB、首次初始化并替换默认客服密码，最后等待后台页面健康检查。自动化环境也可通过 `DEPLOY_HOST` 等环境变量配置；`SSH_PASSWORD` 环境变量模式需要本机安装 `sshpass`。高级配置项见 `scripts/deploy.env.example`，无需复制模板。
+脚本会安装 Docker、上传并校验本机项目根目录的 `.env`、本机构建并上传应用镜像、启动 MariaDB、首次初始化并替换默认客服密码，最后等待后台页面健康检查。本机 `.env` 必须存在，其中数据库密码和会话/JWT 密钥必须是至少 32 字符的非示例值。自动化环境也可通过 `DEPLOY_HOST` 等环境变量配置；`SSH_PASSWORD` 环境变量模式需要本机安装 `sshpass`。高级配置项见 `scripts/deploy.env.example`，无需复制模板。
 
 默认目录 `/opt/goflylivechat`，后台 `http://服务器IP:8081/login`，账号 `agent`，初始随机密码在部署输出以及服务器的 `initial-admin-password.txt` 中。云安全组需放行 TCP 8081（修改端口时相应调整）。数据库发布到宿主机 TCP 3306，外网客户端连接服务器 IP、数据库 `goflychat`、用户名 `goflychat`，密码取服务器 `.env` 的 `GOFLY_DB_PASSWORD`；服务器防火墙及云安全组需放行 3306，建议仅允许你的客户端 IP。远端需能访问 Docker 官方软件源及 Compose 中的 MariaDB 镜像地址。HTTPS 和域名反代需另行配置。
 
-重复运行同一条命令即可更新应用，保留远端 `.env`、密码、数据库、安装锁、附件和头像；不会上传本机开发 `.env`。后续更改端口、允许来源或 App 接入配置，请修改服务器 `.env` 后重跑。更新会重建应用容器，已有聊天连接可能短暂中断；更新前请自行备份数据库和数据卷。脚本不执行数据删除或自动数据库回滚。
+重复运行同一条命令即可更新应用，并用本机 `.env` 更新远端配置。配置先上传为权限 600 的 `.env.upload`，通过密钥和 Compose 校验后，将远端原 `.env` 备份为 `.env.backup` 并替换；校验失败时保留原配置。后续更改端口、允许来源或 App 接入配置，请修改本机 `.env` 后重跑。本机 `.env` 不进入 Git 或 Docker 镜像，`scripts/deploy.env` 仍只在本机读取。已有数据库的密码必须沿用服务器当前值，修改 `.env` 不会更改数据卷中数据库账号的实际密码。数据库、安装锁、附件和头像保留；更新会重建应用容器，已有聊天连接可能短暂中断；更新前请自行备份数据库和数据卷。脚本不执行数据删除或自动数据库回滚。
+
+与 App 后端同机部署时，生产 Compose 使用共享网络 `gofly-app`，部署脚本自动创建或复用。先部署 App 后端的 `myapp`，再运行客服部署脚本；客服 `.env` 设置 `GOFLY_APP_API_BASE_URL=http://myapp:8080`，后端之间通过容器名直接通信。手机访问的客服 URL 和允许来源继续填写公网 HTTPS 域名。
 
 远端排查命令（按实际部署目录调整）：
 

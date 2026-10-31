@@ -45,6 +45,7 @@ func EnsureChatSchema() error {
 		}
 	}
 	for _, stmt := range []string{
+		appPushSchema,
 		"CREATE TABLE IF NOT EXISTS app_visitor_mapping (app_id varchar(80) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, user_id varchar(100) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, visitor_id varchar(100) NOT NULL, PRIMARY KEY(app_id,user_id), UNIQUE KEY uniq_app_visitor(visitor_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 		"CREATE TABLE IF NOT EXISTS visitor_session (hash varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY, visitor_id varchar(100) NOT NULL, app_id varchar(80) NOT NULL, user_id varchar(100) NOT NULL, source_session_id varchar(128) NOT NULL, expires_at datetime(6) NOT NULL, verified_until datetime(6) NOT NULL, revoked_at datetime(6) NULL, KEY session_visitor(visitor_id), KEY session_expiry(expires_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 	} {
