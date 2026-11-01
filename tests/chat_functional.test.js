@@ -74,6 +74,14 @@ function fail(request) {
 }
 function ids(app) { return Array.from(app.msgList, item => item.id); }
 
+test('all visitor information starts collapsed and collapses when switching visitors', () => {
+    const c = chat('agent');
+    assert.equal(c.app.visitorInfoExpanded, false);
+    c.app.visitorInfoExpanded = true;
+    c.app.talkTo('b', 'Guest B');
+    assert.equal(c.app.visitorInfoExpanded, false);
+});
+
 test('agent distinguishes identical visitor names using their App account IDs in history and realtime', () => {
     const c = chat('agent');
     for (const [visitorId, accountId, recordId] of [['a', '42', 1012], ['b', '43', 1013]]) {
